@@ -23,7 +23,7 @@ public partial class MainWindowViewModel : ObservableObject
     /// <summary>画笔大小范围（与 MainWindow 滑块一致）。internal 供单测。</summary>
     internal const double MinBrushSize = 4;
     internal const double MaxBrushSize = 160;
-    private const double BrushSizeStep = 10;
+    private const double BrushSizeStep = 1;
 
     private static readonly string[] ImagePatterns = ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp"];
 
