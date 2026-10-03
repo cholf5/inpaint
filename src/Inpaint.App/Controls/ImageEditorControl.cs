@@ -60,7 +60,7 @@ public class ImageEditorControl : Control
         set => SetValue(IsPaintEnabledProperty, value);
     }
 
-    /// <summary>调节画笔大小（如拖动滑块）时，即使指针不在画布上也持续显示大小预览环。</summary>
+    /// <summary>调节画笔大小（拖动滑块或按 [ ] 快捷键）时，即使指针不在画布上也显示大小预览环。</summary>
     public bool ShowSizePreview
     {
         get => GetValue(ShowSizePreviewProperty);

@@ -20,6 +20,11 @@ public partial class MainWindowViewModel : ObservableObject
 
     private const int ThumbnailMaxSide = 96;
 
+    /// <summary>画笔大小范围（与 MainWindow 滑块一致）。internal 供单测。</summary>
+    internal const double MinBrushSize = 4;
+    internal const double MaxBrushSize = 160;
+    private const double BrushSizeStep = 10;
+
     private static readonly FilePickerFileType ImageFileTypes = new("图片")
     {
         Patterns = ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp"],
@@ -124,6 +129,16 @@ public partial class MainWindowViewModel : ObservableObject
         StatusText = $"已加载 {bitmap.PixelSize.Width}×{bitmap.PixelSize.Height}，涂抹后点「修复涂抹区域」";
         UndoCommand.NotifyCanExecuteChanged();
     }
+
+    // ---- 画笔大小（滑块 / 快捷键 [ ]）----
+
+    /// <summary>快捷键 [：缩小画笔，钳制到滑块最小值。</summary>
+    [RelayCommand]
+    private void DecreaseBrushSize() => BrushSize = Math.Max(MinBrushSize, BrushSize - BrushSizeStep);
+
+    /// <summary>快捷键 ]：放大画笔，钳制到滑块最大值。</summary>
+    [RelayCommand]
+    private void IncreaseBrushSize() => BrushSize = Math.Min(MaxBrushSize, BrushSize + BrushSizeStep);
 
     // ---- 修复 ----
 

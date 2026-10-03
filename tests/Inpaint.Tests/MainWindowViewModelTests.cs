@@ -257,6 +257,23 @@ public class MainWindowViewModelTests
     }
 
     [AvaloniaFact]
+    public void 画笔快捷键命令_步进调整并钳制到滑块范围()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        Assert.Equal(40, vm.BrushSize);
+
+        vm.DecreaseBrushSizeCommand.Execute(null);
+        Assert.Equal(30, vm.BrushSize);
+        vm.IncreaseBrushSizeCommand.Execute(null);
+        Assert.Equal(40, vm.BrushSize);
+
+        for (int i = 0; i < 20; i++) vm.IncreaseBrushSizeCommand.Execute(null);
+        Assert.Equal(MainWindowViewModel.MaxBrushSize, vm.BrushSize);
+        for (int i = 0; i < 20; i++) vm.DecreaseBrushSizeCommand.Execute(null);
+        Assert.Equal(MainWindowViewModel.MinBrushSize, vm.BrushSize);
+    }
+
+    [AvaloniaFact]
     public void CreateBitmap_ExtractBgra_往返一致()
     {
         var bgra = new byte[4 * 3 * 2];

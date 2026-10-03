@@ -10,6 +10,8 @@
         <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenCommand}"/>
         <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveCommand}"/>
         <KeyBinding Gesture="Ctrl+Z" Command="{Binding UndoCommand}"/>
+        <KeyBinding Gesture="OemOpenBrackets" Command="{Binding DecreaseBrushSizeCommand}"/>
+        <KeyBinding Gesture="OemCloseBrackets" Command="{Binding IncreaseBrushSizeCommand}"/>
     </Window.KeyBindings>
     <DockPanel Margin="10">
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8">
