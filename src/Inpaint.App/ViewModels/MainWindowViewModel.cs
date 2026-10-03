@@ -31,7 +31,13 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private double _brushSize = 40;
     [ObservableProperty] private double _progress;
     [ObservableProperty] private string _statusText = "打开一张图片，涂抹掉不想要的内容";
-    [ObservableProperty] private bool _hasImage;
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
+    [NotifyCanExecuteChangedFor(nameof(InpaintCommand))]
+    [NotifyCanExecuteChangedFor(nameof(UpscaleCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ResetCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ClearMaskCommand))]
+    private bool _hasImage;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(OpenCommand))]
