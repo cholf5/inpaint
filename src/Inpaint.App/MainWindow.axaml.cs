@@ -10,6 +10,9 @@ namespace Inpaint.App;
 
 public partial class MainWindow : Window
 {
+    private const double MinHistoryPanelWidth = 200;
+    private const double MaxHistoryPanelWidth = 560;
+
     private readonly DispatcherTimer _brushPreviewTimer = new();
     private bool _brushSliderDragging;
 
@@ -52,6 +55,13 @@ public partial class MainWindow : Window
             Editor.ShowSizePreview = true;
             _brushPreviewTimer.Stop();
             _brushPreviewTimer.Start();
+        };
+
+        // 拖动历史面板左缘调宽（向左拖变宽）；面板在 Auto 列里，宽度即列宽
+        HistoryResizeThumb.DragDelta += (_, e) =>
+        {
+            HistoryPanel.Width = Math.Clamp(
+                HistoryPanel.Width - e.Vector.X, MinHistoryPanelWidth, MaxHistoryPanelWidth);
         };
 
         // 生成历史更新后，把当前预览的节点滚进可视区（新节点常在图底部/右侧）

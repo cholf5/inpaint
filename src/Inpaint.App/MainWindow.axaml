@@ -68,25 +68,43 @@
             </Panel>
 
             <!-- 生成历史：整块 git 风格竖向 Graph（车道 = 分支，行 = 时间），
-                 左键节点预览，右键节点 复制/下载；当前路径高亮，搁置分支压暗 -->
-            <Border Grid.Column="1" Width="264" Margin="8,0,0,0" Padding="6"
+                 左键节点预览，右键节点 复制/下载；当前路径高亮，搁置分支压暗。
+                 左缘 Thumb 可拖拽调宽；车道超出面板宽度时横向滚动 -->
+            <Border Grid.Column="1" x:Name="HistoryPanel" Width="264" Margin="8,0,0,0" Padding="6"
                     BorderBrush="#20000000" BorderThickness="1,0,0,0"
                     IsVisible="{Binding IsHistoryVisible}">
-                <DockPanel Margin="4">
-                    <TextBlock DockPanel.Dock="Top" Margin="4,4,4,8" FontWeight="Bold"
-                               Text="{Binding HistoryTitle}"/>
-                    <TextBlock DockPanel.Dock="Top" IsVisible="{Binding !HasImage}" Foreground="Gray"
-                               TextWrapping="Wrap"
-                               Text="{Binding HistoryEmptyHint, Source={x:Static loc:Translations.Instance}}"/>
-                    <ScrollViewer>
-                        <controls:HistoryGraphView x:Name="HistoryGraph" MinHeight="80"
-                                                   Nodes="{Binding HistoryNodes}"
-                                                   CurrentNode="{Binding CurrentNode}"
-                                                   SelectNodeCommand="{Binding SelectNodeCommand}"
-                                                   CopyNodeCommand="{Binding CopyNodeCommand}"
-                                                   SaveNodeCommand="{Binding SaveNodeCommand}"/>
-                    </ScrollViewer>
-                </DockPanel>
+                <!-- Avalonia 12 主题没有裸 Thumb 的默认模板，须自备以获得命中面 -->
+                <Border.Styles>
+                    <Style Selector="Thumb#HistoryResizeThumb">
+                        <Setter Property="Template">
+                            <ControlTemplate>
+                                <Border Background="{TemplateBinding Background}"/>
+                            </ControlTemplate>
+                        </Setter>
+                    </Style>
+                    <Style Selector="Thumb#HistoryResizeThumb:pointerover">
+                        <Setter Property="Background" Value="#28000000"/>
+                    </Style>
+                </Border.Styles>
+                <Panel>
+                    <DockPanel Margin="4">
+                        <TextBlock DockPanel.Dock="Top" Margin="4,4,4,8" FontWeight="Bold"
+                                   Text="{Binding HistoryTitle}"/>
+                        <TextBlock DockPanel.Dock="Top" IsVisible="{Binding !HasImage}" Foreground="Gray"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding HistoryEmptyHint, Source={x:Static loc:Translations.Instance}}"/>
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto">
+                            <controls:HistoryGraphView x:Name="HistoryGraph" MinHeight="80"
+                                                       Nodes="{Binding HistoryNodes}"
+                                                       CurrentNode="{Binding CurrentNode}"
+                                                       SelectNodeCommand="{Binding SelectNodeCommand}"
+                                                       CopyNodeCommand="{Binding CopyNodeCommand}"
+                                                       SaveNodeCommand="{Binding SaveNodeCommand}"/>
+                        </ScrollViewer>
+                    </DockPanel>
+                    <Thumb x:Name="HistoryResizeThumb" Width="8" HorizontalAlignment="Left"
+                           VerticalAlignment="Stretch" Cursor="SizeWestEast" Background="Transparent"/>
+                </Panel>
             </Border>
         </Grid>
     </DockPanel>

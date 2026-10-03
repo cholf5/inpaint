@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -163,6 +164,64 @@ public class HistoryGraphViewTests
         // 调试快照（人工查看整个历史面板）
         using (var fs = File.Create(Path.Combine(Path.GetTempPath(), "inpaint-history-panel.png")))
             frame.Save(fs);
+
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void 主窗口车道超过面板宽度_横向滚动可达()
+    {
+        var window = new MainWindow();
+        var viewModel = (MainWindowViewModel)window.DataContext!;
+        viewModel.AdoptBitmap(MakeBitmap(1, 1));
+        // 连续「生成 → 撤销回根 → 再生成」开出 5 条车道，图所需宽度 28 + 5×72 = 388，超过面板视口约 244
+        for (int i = 0; i < 4; i++)
+        {
+            viewModel.PushHistory(MakeBitmap(i + 2, i + 2), $"分支{i}");
+            viewModel.UndoCommand.Execute(null);
+        }
+        viewModel.PushHistory(MakeBitmap(9, 9), "分支4");
+
+        window.Show();
+        var scrollViewer = window.GetVisualDescendants().OfType<ScrollViewer>().Single();
+        Assert.Equal(5, viewModel.HistoryNodes.Max(n => n.LaneIndex) + 1);
+        Assert.True(scrollViewer.Extent.Width > scrollViewer.Viewport.Width + 100,
+            $"横向应可滚动：Extent={scrollViewer.Extent.Width}, Viewport={scrollViewer.Viewport.Width}");
+
+        // 滚到最右后横向偏移应生效（此前横向默认 Disabled，Extent 恒等于 Viewport）
+        scrollViewer.Offset = new Vector(double.MaxValue, 0);
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(scrollViewer.Offset.X > 0, "横向偏移应能滚动");
+        window.Close();
+    }
+
+    [AvaloniaFact]
+    public void 拖动历史面板左缘_调整面板宽度且受限()
+    {
+        var window = new MainWindow();
+        var viewModel = (MainWindowViewModel)window.DataContext!;
+        viewModel.AdoptBitmap(MakeBitmap(1, 1));
+        viewModel.PushHistory(MakeBitmap(2, 2), "修复");
+        window.Show();
+
+        var panel = window.GetVisualDescendants().OfType<Border>().Single(b => b.Name == "HistoryPanel");
+        var thumb = window.GetVisualDescendants().OfType<Thumb>().Single(t => t.Name == "HistoryResizeThumb");
+        Assert.Equal(264, panel.Width);
+
+        // 向左拖 100px 变宽：264 → 364
+        var start = thumb.TranslatePoint(new Point(thumb.Bounds.Width / 2, thumb.Bounds.Height / 2), window)!.Value;
+        window.MouseDown(start, MouseButton.Left);
+        window.MouseMove(new Point(start.X - 100, start.Y), RawInputModifiers.None);
+        window.MouseUp(new Point(start.X - 100, start.Y), MouseButton.Left, RawInputModifiers.None);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(364, panel.Width, 0);
+
+        // 继续向右拖 300px 收窄：364 - 300 低于下限，应钳制到 200
+        window.MouseDown(new Point(start.X - 100, start.Y), MouseButton.Left);
+        window.MouseMove(new Point(start.X + 200, start.Y), RawInputModifiers.None);
+        window.MouseUp(new Point(start.X + 200, start.Y), MouseButton.Left, RawInputModifiers.None);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(200, panel.Width, 0);
 
         window.Close();
     }
