@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using Avalonia.Threading;
 using Inpaint.App.ViewModels;
 
 namespace Inpaint.App;
@@ -10,7 +11,8 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        var viewModel = new MainWindowViewModel(StorageProvider);
+        var topLevel = TopLevel.GetTopLevel(this);
+        var viewModel = new MainWindowViewModel(topLevel?.StorageProvider, topLevel?.Clipboard);
         DataContext = viewModel;
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DropEvent, OnDrop);
@@ -18,6 +20,16 @@ public partial class MainWindow : Window
         // 拖动画笔大小滑块期间，指针虽在滑块上，也持续在画布上显示画笔大小预览环
         BrushSlider.AddHandler(Thumb.DragStartedEvent, (_, _) => Editor.ShowSizePreview = true);
         BrushSlider.AddHandler(Thumb.DragCompletedEvent, (_, _) => Editor.ShowSizePreview = false);
+
+        // 生成历史更新后，把当前预览的节点滚进可视区（新节点常在图底部/右侧）
+        viewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is not nameof(MainWindowViewModel.CurrentNode)) return;
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (viewModel.CurrentNode is { } node) HistoryGraph.ScrollNodeIntoView(node);
+            }, DispatcherPriority.Loaded);
+        };
     }
 
     private async void OnDrop(object? sender, DragEventArgs e)

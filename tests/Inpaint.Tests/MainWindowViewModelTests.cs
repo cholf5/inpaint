@@ -9,7 +9,8 @@ using Inpaint.App.ViewModels;
 namespace Inpaint.Tests;
 
 /// <summary>
-/// ViewModel 位图生命周期与命令可用性。Bitmap 相关操作需要 Avalonia 平台，走 headless。
+/// ViewModel 位图生命周期、命令可用性与生成历史树（git 式分叉）语义。
+/// Bitmap 相关操作需要 Avalonia 平台，走 headless。
 /// </summary>
 public class MainWindowViewModelTests
 {
@@ -33,10 +34,16 @@ public class MainWindowViewModelTests
         return compact;
     }
 
+    private static void PushChain(MainWindowViewModel vm, int from, int to)
+    {
+        for (int i = from; i <= to; i++)
+            vm.PushHistory(MakeBitmap(i, i), $"测试{i}");
+    }
+
     [AvaloniaFact]
     public void AdoptBitmap_初始化图片遮罩与命令可用性()
     {
-        var vm = new MainWindowViewModel(null);
+        var vm = new MainWindowViewModel(null, null);
         Assert.False(vm.HasImage);
         Assert.False(vm.InpaintCommand.CanExecute(null));
 
@@ -52,6 +59,15 @@ public class MainWindowViewModelTests
         Assert.True(vm.ResetCommand.CanExecute(null));
         Assert.True(vm.ClearMaskCommand.CanExecute(null));
         Assert.False(vm.UndoCommand.CanExecute(null));
+        // 生成历史：第一项永远是原图
+        var root = Assert.Single(vm.HistoryNodes);
+        Assert.Equal("原图", root.Title);
+        Assert.Null(root.Parent);
+        Assert.Same(root, vm.CurrentNode);
+        Assert.True(root.IsCurrent);
+        Assert.NotNull(root.Thumbnail);
+        // 测试环境没有剪贴板，复制命令应禁用
+        Assert.False(vm.CopyNodeCommand.CanExecute(root));
         // 遮罩初始全 0 字节（经 MaskBgraToChw 全部映射为 255 = 保留）
         Assert.All(ReadMaskPixels(vm.MaskImage, 6, 4), b => Assert.Equal(0, (int)b));
     }
@@ -59,7 +75,7 @@ public class MainWindowViewModelTests
     [AvaloniaFact]
     public async Task LoadFromStreamAsync_无效流写入StatusText不抛异常()
     {
-        var vm = new MainWindowViewModel(null);
+        var vm = new MainWindowViewModel(null, null);
 
         await vm.LoadFromStreamAsync(new MemoryStream([1, 2, 3]));
 
@@ -69,20 +85,15 @@ public class MainWindowViewModelTests
     }
 
     [AvaloniaFact]
-    public void PushHistory_撤销生效且重做分支被截断()
+    public void PushHistory_线性生成与撤销()
     {
-        var vm = new MainWindowViewModel(null);
+        var vm = new MainWindowViewModel(null, null);
         vm.AdoptBitmap(MakeBitmap(1, 1));
-        vm.PushHistory(MakeBitmap(2, 2));
-        vm.PushHistory(MakeBitmap(3, 3));
+        PushChain(vm, 2, 3);
 
         Assert.Equal(new PixelSize(3, 3), vm.CurrentImage!.PixelSize);
+        Assert.Equal(3, vm.HistoryNodes.Count);
         Assert.True(vm.UndoCommand.CanExecute(null));
-        vm.UndoCommand.Execute(null);
-        Assert.Equal(new PixelSize(2, 2), vm.CurrentImage!.PixelSize);
-
-        // 撤销后推入新位图：3×3 所在的重做分支必须被丢弃，但撤销点 2×2 保留
-        vm.PushHistory(MakeBitmap(4, 4));
         vm.UndoCommand.Execute(null);
         Assert.Equal(new PixelSize(2, 2), vm.CurrentImage!.PixelSize);
         vm.UndoCommand.Execute(null);
@@ -91,37 +102,158 @@ public class MainWindowViewModelTests
     }
 
     [AvaloniaFact]
-    public void PushHistory_历史上限25步()
+    public void PushHistory_撤销后生成产生分叉_旧分支保留()
     {
-        var vm = new MainWindowViewModel(null);
+        var vm = new MainWindowViewModel(null, null);
         vm.AdoptBitmap(MakeBitmap(1, 1));
-        // 共 31 条历史：#1(1×1) 载入 + #2..#31(2..31 尺寸) 推入
-        for (int i = 2; i <= 31; i++)
-            vm.PushHistory(MakeBitmap(i, i));
+        PushChain(vm, 2, 3);
 
+        vm.UndoCommand.Execute(null);
+        Assert.Equal(new PixelSize(2, 2), vm.CurrentImage!.PixelSize);
+
+        // 基于 2×2 重新生成：git 式分叉，旧分支 3×3 保留不动
+        vm.PushHistory(MakeBitmap(4, 4), "修复");
+
+        Assert.Equal(new PixelSize(4, 4), vm.CurrentImage!.PixelSize);
+        Assert.Equal(4, vm.HistoryNodes.Count);
+        var forkBase = vm.HistoryNodes[1];
+        Assert.Equal(new PixelSize(2, 2), forkBase.Image.PixelSize);
+        Assert.Equal(2, forkBase.Children.Count);
+        // 列表按创建时间排列：3×3 在 4×4 之前
+        Assert.Equal(new PixelSize(3, 3), vm.HistoryNodes[2].Image.PixelSize);
+        Assert.Equal(new PixelSize(4, 4), vm.HistoryNodes[3].Image.PixelSize);
+        // 撤销沿当前链走：4×4 → 2×2 → 原图
+        vm.UndoCommand.Execute(null);
+        Assert.Equal(new PixelSize(2, 2), vm.CurrentImage!.PixelSize);
+        vm.UndoCommand.Execute(null);
+        Assert.Equal(new PixelSize(1, 1), vm.CurrentImage!.PixelSize);
+        Assert.False(vm.UndoCommand.CanExecute(null));
+    }
+
+    [AvaloniaFact]
+    public void PushHistory_分叉图布局_车道与行分配()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        vm.AdoptBitmap(MakeBitmap(1, 1));
+        PushChain(vm, 2, 3);
+        vm.UndoCommand.Execute(null);
+        vm.PushHistory(MakeBitmap(4, 4), "修复");
+
+        var rows = vm.HistoryNodes;
+        // 行 = 创建时间序
+        Assert.Equal(0, rows[0].RowIndex);
+        Assert.Equal(1, rows[1].RowIndex);
+        Assert.Equal(2, rows[2].RowIndex);
+        Assert.Equal(3, rows[3].RowIndex);
+        // 车道 = 第一子节点延续父车道（git 式原车道不动），分叉子节点开右侧新车道
+        Assert.Equal(0, rows[0].LaneIndex);
+        Assert.Equal(0, rows[1].LaneIndex);
+        Assert.Equal(0, rows[2].LaneIndex);
+        Assert.Equal(1, rows[3].LaneIndex);
+        // 当前路径 = 原图 → 2×2 → 4×4；3×3 是被搁置的分支
+        Assert.True(rows[0].IsOnCurrentPath);
+        Assert.True(rows[1].IsOnCurrentPath);
+        Assert.False(rows[2].IsOnCurrentPath);
+        Assert.False(rows[2].IsCurrent);
+        Assert.True(rows[3].IsCurrent);
+    }
+
+    [AvaloniaFact]
+    public void PushHistory_超限裁剪_优先丢弃最旧的非当前分支()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        vm.AdoptBitmap(MakeBitmap(1, 1));
+        PushChain(vm, 2, 24);
+        vm.ResetCommand.Execute(null);
+        vm.PushHistory(MakeBitmap(100, 100), "修复");
+        vm.PushHistory(MakeBitmap(200, 200), "修复");
+
+        // 共 26 项 → 裁掉最旧的非当前分支节点 2×2
+        Assert.Equal(25, vm.HistoryNodes.Count);
+        // 原图永远是第一项且保留
+        Assert.Equal(new PixelSize(1, 1), vm.HistoryNodes[0].Image.PixelSize);
+        Assert.Null(vm.HistoryNodes[0].Parent);
+        Assert.DoesNotContain(vm.HistoryNodes, n => n.Image.PixelSize == new PixelSize(2, 2));
+        // 2×2 之后的链条被拼接到根下，保持完整
+        var n3 = vm.HistoryNodes.First(n => n.Image.PixelSize == new PixelSize(3, 3));
+        Assert.Same(vm.HistoryNodes[0], n3.Parent);
+        // 当前分支不受影响，可一路撤销回原图
+        Assert.Equal(new PixelSize(200, 200), vm.CurrentImage!.PixelSize);
+        vm.UndoCommand.Execute(null);
+        Assert.Equal(new PixelSize(100, 100), vm.CurrentImage!.PixelSize);
+        vm.UndoCommand.Execute(null);
+        Assert.Equal(new PixelSize(1, 1), vm.CurrentImage!.PixelSize);
+    }
+
+    [AvaloniaFact]
+    public void PushHistory_纯直链超限_拼接最旧节点且根保留()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        vm.AdoptBitmap(MakeBitmap(1, 1));
+        PushChain(vm, 2, 31);
+
+        Assert.Equal(25, vm.HistoryNodes.Count);
+        Assert.Equal(new PixelSize(1, 1), vm.HistoryNodes[0].Image.PixelSize);
+        Assert.Equal(new PixelSize(31, 31), vm.CurrentImage!.PixelSize);
+        // 撤销链仍完整：24 次撤销回到原图
         for (int i = 0; i < 24; i++)
         {
             Assert.True(vm.UndoCommand.CanExecute(null), $"第 {i + 1} 次撤销应可用");
             vm.UndoCommand.Execute(null);
         }
-
-        // 上限 25 条：最早的 #1..#6 被丢弃，24 次撤销后停在 #7(7×7) 且不可再撤销
-        Assert.Equal(new PixelSize(7, 7), vm.CurrentImage!.PixelSize);
+        Assert.Equal(new PixelSize(1, 1), vm.CurrentImage!.PixelSize);
         Assert.False(vm.UndoCommand.CanExecute(null));
     }
 
     [AvaloniaFact]
-    public void Reset_回到原图()
+    public void Reset_回到原图且历史保留()
     {
-        var vm = new MainWindowViewModel(null);
+        var vm = new MainWindowViewModel(null, null);
         vm.AdoptBitmap(MakeBitmap(1, 1));
-        vm.PushHistory(MakeBitmap(2, 2));
-        vm.PushHistory(MakeBitmap(3, 3));
+        PushChain(vm, 2, 3);
 
         vm.ResetCommand.Execute(null);
 
         Assert.Equal(new PixelSize(1, 1), vm.CurrentImage!.PixelSize);
+        // 新语义：历史树保留，可点击图中旧节点切回；根（原图）没有父节点，撤销禁用
+        Assert.Equal(3, vm.HistoryNodes.Count);
         Assert.False(vm.UndoCommand.CanExecute(null));
+    }
+
+    [AvaloniaFact]
+    public void SelectNode_预览历史项并作为后续生成基准()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        vm.AdoptBitmap(MakeBitmap(1, 1));
+        PushChain(vm, 2, 3);
+
+        vm.SelectNodeCommand.Execute(vm.HistoryNodes[1]);
+
+        Assert.Equal(new PixelSize(2, 2), vm.CurrentImage!.PixelSize);
+        Assert.Equal(new PixelSize(2, 2), vm.MaskImage!.PixelSize);
+        Assert.True(vm.HistoryNodes[1].IsCurrent);
+        Assert.False(vm.HistoryNodes[2].IsCurrent);
+        Assert.True(vm.UndoCommand.CanExecute(null));
+        // 在该节点上继续生成 → git 式分叉：新图开新车道，旧分支不动
+        vm.PushHistory(MakeBitmap(4, 4), "修复");
+        Assert.Equal(new PixelSize(4, 4), vm.CurrentImage!.PixelSize);
+        Assert.Equal(2, vm.HistoryNodes[1].Children.Count);
+        Assert.Equal(1, vm.HistoryNodes[3].LaneIndex);
+    }
+
+    [AvaloniaFact]
+    public void AdoptBitmap_重新载入时释放旧历史()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        vm.AdoptBitmap(MakeBitmap(1, 1));
+        PushChain(vm, 2, 3);
+
+        vm.AdoptBitmap(MakeBitmap(5, 5));
+
+        var root = Assert.Single(vm.HistoryNodes);
+        Assert.Equal(new PixelSize(5, 5), root.Image.PixelSize);
+        Assert.Equal(new PixelSize(5, 5), vm.CurrentImage!.PixelSize);
+        Assert.Equal(new PixelSize(5, 5), vm.MaskImage!.PixelSize);
     }
 
     [AvaloniaFact]

@@ -18,6 +18,7 @@
             <Separator/>
             <Button Command="{Binding UndoCommand}">撤销</Button>
             <Button Command="{Binding ResetCommand}">回到原图</Button>
+            <ToggleButton IsChecked="{Binding IsHistoryVisible}">历史</ToggleButton>
             <Separator/>
             <TextBlock VerticalAlignment="Center" Text="画笔"/>
             <Slider x:Name="BrushSlider" Width="150" VerticalAlignment="Center" Minimum="4" Maximum="160"
@@ -38,16 +39,40 @@
                        Text="{Binding StatusText}" TextTrimming="CharacterEllipsis"/>
         </Grid>
 
-        <Panel>
-            <controls:ImageEditorControl x:Name="Editor"
-                                         Source="{Binding CurrentImage}"
-                                         Mask="{Binding MaskImage}"
-                                         BrushSize="{Binding BrushSize}"
-                                         IsPaintEnabled="{Binding !IsBusy}"/>
-            <TextBlock IsVisible="{Binding !HasImage}"
-                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                       FontSize="18" Foreground="Gray"
-                       Text="把图片拖进窗口，或点击「打开图片…」"/>
-        </Panel>
+        <Grid ColumnDefinitions="*,Auto">
+            <Panel Grid.Column="0">
+                <controls:ImageEditorControl x:Name="Editor"
+                                             Source="{Binding CurrentImage}"
+                                             Mask="{Binding MaskImage}"
+                                             BrushSize="{Binding BrushSize}"
+                                             IsPaintEnabled="{Binding !IsBusy}"/>
+                <TextBlock IsVisible="{Binding !HasImage}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           FontSize="18" Foreground="Gray"
+                           Text="把图片拖进窗口，或点击「打开图片…」"/>
+            </Panel>
+
+            <!-- 生成历史：整块 git 风格竖向 Graph（车道 = 分支，行 = 时间），
+                 左键节点预览，右键节点 复制/下载；当前路径高亮，搁置分支压暗 -->
+            <Border Grid.Column="1" Width="264" Margin="8,0,0,0" Padding="6"
+                    BorderBrush="#20000000" BorderThickness="1,0,0,0"
+                    IsVisible="{Binding IsHistoryVisible}">
+                <DockPanel Margin="4">
+                    <TextBlock DockPanel.Dock="Top" Margin="4,4,4,8" FontWeight="Bold"
+                               Text="{Binding HistoryNodes.Count, StringFormat='{}生成历史（{0}）'}"/>
+                    <TextBlock DockPanel.Dock="Top" IsVisible="{Binding !HasImage}" Foreground="Gray"
+                               TextWrapping="Wrap"
+                               Text="打开或生成图片后，这里会记录每一次修复与放大"/>
+                    <ScrollViewer>
+                        <controls:HistoryGraphView x:Name="HistoryGraph" MinHeight="80"
+                                                   Nodes="{Binding HistoryNodes}"
+                                                   CurrentNode="{Binding CurrentNode}"
+                                                   SelectNodeCommand="{Binding SelectNodeCommand}"
+                                                   CopyNodeCommand="{Binding CopyNodeCommand}"
+                                                   SaveNodeCommand="{Binding SaveNodeCommand}"/>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+        </Grid>
     </DockPanel>
 </Window>
