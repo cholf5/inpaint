@@ -34,7 +34,7 @@ public sealed class UpscaleEngine : IDisposable
         if (_session is null)
         {
             _session = new InferenceSession(
-                ModelStore.GetPath(KnownModels.RealEsrganX4), OrtConfig.MakeSessionOptions());
+                ModelStore.GetPath(KnownModels.RealEsrganX4), OrtConfig.MakeSessionOptions(allowCoreML: true));
             _inputName = _session.InputMetadata.Keys.FirstOrDefault() ?? _inputName;
             _outputName = _session.OutputMetadata.Keys.FirstOrDefault() ?? _outputName;
         }

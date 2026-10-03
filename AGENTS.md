@@ -23,7 +23,7 @@ lxfater/inpaint-web 的 C# / .NET 10 + Avalonia 桌面重写：MI-GAN 图片修�
 ## 推理与模型缓存
 
 - 模型首次使用时由 `ModelStore` 下载（HuggingFace 主源 + CDN 备源，临时文件原子替换），缓存到应用数据目录：macOS `~/Library/Application Support/Inpaint/models/`（Windows `%APPDATA%\Inpaint`、Linux `~/.local/share/Inpaint`）。网络受限时设 `https_proxy` 或手动放入文件。
-- 默认 CPU EP（`OrtConfig.MakeSessionOptions`）；`INPAINT_EP=coreml` 环境变量在 macOS 启用 CoreML（每次启动重新编译模型，数十秒一次性开销）。Windows DML 需加 `Microsoft.ML.OnnxRuntime.DirectML` 包并在同一处追加 EP。
+- EP 选择在 `OrtConfig.MakeSessionOptions(allowCoreML)`，按引擎区分：超分（全卷积）macOS 默认 CoreML——M2 实测 64×64 tile 540ms(CPU)→11ms，会话编译 3~4 秒一次性开销；修复（MI-GAN）保持 CPU——CoreML 只能接管其 559 个节点中的 375 个，分区搬运使单次推理 0.4s 恶化到 69s。`INPAINT_EP=cpu` 强制全部回退 CPU；`INPAINT_EP=coreml` 强制启用（MI-GAN 上极慢，仅实验用）。Windows DML 需加 `Microsoft.ML.OnnxRuntime.DirectML` 包并在同一处追加 EP。
 - 输入/输出张量名从 session metadata 探测，带兜底默认值（超分 `"input.1"` / `"1895"`）。
 
 ## 代码约定
