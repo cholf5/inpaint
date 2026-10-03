@@ -20,7 +20,7 @@
             <Button Command="{Binding ResetCommand}">回到原图</Button>
             <Separator/>
             <TextBlock VerticalAlignment="Center" Text="画笔"/>
-            <Slider Width="150" VerticalAlignment="Center" Minimum="4" Maximum="160"
+            <Slider x:Name="BrushSlider" Width="150" VerticalAlignment="Center" Minimum="4" Maximum="160"
                     Value="{Binding BrushSize}"/>
             <TextBlock VerticalAlignment="Center" Width="36"
                        Text="{Binding BrushSize, StringFormat='{}{0:F0}'}"/>

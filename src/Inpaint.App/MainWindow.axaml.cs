@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Inpaint.App.ViewModels;
 
@@ -13,6 +14,10 @@ public partial class MainWindow : Window
         DataContext = viewModel;
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DropEvent, OnDrop);
+
+        // 拖动画笔大小滑块期间，指针虽在滑块上，也持续在画布上显示画笔大小预览环
+        BrushSlider.AddHandler(Thumb.DragStartedEvent, (_, _) => Editor.ShowSizePreview = true);
+        BrushSlider.AddHandler(Thumb.DragCompletedEvent, (_, _) => Editor.ShowSizePreview = false);
     }
 
     private async void OnDrop(object? sender, DragEventArgs e)

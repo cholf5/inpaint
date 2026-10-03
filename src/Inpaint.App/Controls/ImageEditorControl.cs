@@ -24,11 +24,15 @@ public class ImageEditorControl : Control
     public static readonly StyledProperty<bool> IsPaintEnabledProperty =
         AvaloniaProperty.Register<ImageEditorControl, bool>(nameof(IsPaintEnabled), true);
 
+    public static readonly StyledProperty<bool> ShowSizePreviewProperty =
+        AvaloniaProperty.Register<ImageEditorControl, bool>(nameof(ShowSizePreview));
+
     static ImageEditorControl()
     {
         AffectsRender<ImageEditorControl>(SourceProperty);
         AffectsRender<ImageEditorControl>(MaskProperty);
         AffectsRender<ImageEditorControl>(BrushSizeProperty);
+        AffectsRender<ImageEditorControl>(ShowSizePreviewProperty);
     }
 
     public IImage? Source
@@ -54,6 +58,13 @@ public class ImageEditorControl : Control
     {
         get => GetValue(IsPaintEnabledProperty);
         set => SetValue(IsPaintEnabledProperty, value);
+    }
+
+    /// <summary>调节画笔大小（如拖动滑块）时，即使指针不在画布上也持续显示大小预览环。</summary>
+    public bool ShowSizePreview
+    {
+        get => GetValue(ShowSizePreviewProperty);
+        set => SetValue(ShowSizePreviewProperty, value);
     }
 
     private Rect _contentRect;
@@ -99,12 +110,16 @@ public class ImageEditorControl : Control
                 context.DrawImage(mask, dest);
         }
 
-        if (_pointerInside && IsPaintEnabled && BrushSize >= 4)
+        if ((_pointerInside || ShowSizePreview) && IsPaintEnabled && BrushSize >= 4)
         {
+            // 与实际涂抹的圆盘一致画圆形光标；指针不在画布上（如正在拖大小滑块）时以图片中心预览
+            var center = _pointerInside
+                ? _pointer
+                : new Point(_contentRect.X + _contentRect.Width / 2, _contentRect.Y + _contentRect.Height / 2);
             double r = BrushSize / 2;
-            var rect = new Rect(_pointer.X - r, _pointer.Y - r, BrushSize, BrushSize);
-            context.DrawRectangle(null, new Pen(new SolidColorBrush(Color.Parse("#00000099")), 1.5), rect);
-            context.DrawRectangle(null, new Pen(new SolidColorBrush(Color.Parse("#FFFFFFCC")), 1.0), rect.Deflate(1.5));
+            var rect = new Rect(center.X - r, center.Y - r, BrushSize, BrushSize);
+            context.DrawEllipse(null, new Pen(new SolidColorBrush(Color.Parse("#00000099")), 1.5), rect);
+            context.DrawEllipse(null, new Pen(new SolidColorBrush(Color.Parse("#FFFFFFCC")), 1.0), rect.Deflate(1.5));
         }
     }
 
