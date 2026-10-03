@@ -7,3 +7,6 @@ artifacts/
 ## IDE
 .vs/
 .idea/
+
+## 参考实现（独立 git 仓库，见 AGENTS.md）
+/inpaint-web/
