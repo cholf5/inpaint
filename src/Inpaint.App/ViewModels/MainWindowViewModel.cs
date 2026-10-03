@@ -39,7 +39,7 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private WriteableBitmap? _maskImage;
     [ObservableProperty] private double _brushSize = 40;
     [ObservableProperty] private double _progress;
-    [ObservableProperty] private string _statusText = Translations.Instance.InitialStatus;
+    [ObservableProperty] private string? _statusText;
     [ObservableProperty] private IReadOnlyList<ImageHistoryNode> _historyNodes = [];
     [ObservableProperty] private bool _isHistoryVisible = true;
 
@@ -75,12 +75,19 @@ public partial class MainWindowViewModel : ObservableObject
         // 画笔初始值来自设置（钳制到滑块范围）；后续设置变更经 OnSettingsChanged 同步
         _brushSize = Math.Clamp(_settings.DefaultBrushSize, MinBrushSize, MaxBrushSize);
         _settings.PropertyChanged += OnSettingsChanged;
-        // 语言切换时刷新历史面板标题这类派生文本；StatusText 等瞬态文本保持原语言直到下次更新
-        Translations.Instance.PropertyChanged += (_, _) => OnPropertyChanged(nameof(HistoryTitle));
+        // 语言切换时刷新历史面板标题、初始提示这类派生文本；瞬态状态文本保持出现时的语言直到下次更新
+        Translations.Instance.PropertyChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(HistoryTitle));
+            OnPropertyChanged(nameof(StatusDisplay));
+        };
     }
 
     /// <summary>历史面板标题（含节点计数）；历史或语言变化时刷新。</summary>
     public string HistoryTitle => string.Format(Translations.Instance.HistoryTitleFormat, HistoryNodes.Count);
+
+    /// <summary>状态栏显示文本：无瞬态状态时显示初始提示（作为派生文本随语言切换刷新）。</summary>
+    public string StatusDisplay => StatusText ?? Translations.Instance.InitialStatus;
 
     /// <summary>共享设置实例（设置窗口直接编辑它，主窗口经设备/画笔订阅响应变更）。</summary>
     public AppSettings Settings => _settings;

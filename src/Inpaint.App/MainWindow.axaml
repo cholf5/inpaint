@@ -41,7 +41,7 @@
                          Minimum="0" Maximum="100" Value="{Binding Progress}"
                          IsVisible="{Binding IsBusy}"/>
             <TextBlock Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center"
-                       Text="{Binding StatusText}" TextTrimming="CharacterEllipsis"/>
+                       Text="{Binding StatusDisplay}" TextTrimming="CharacterEllipsis"/>
         </Grid>
 
         <!-- 底部工具栏卡片，按工作流分组：撤销纠正 → 画笔涂抹 → 模型生成 → 保存输出；

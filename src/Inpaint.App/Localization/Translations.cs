@@ -10,7 +10,8 @@ namespace Inpaint.App.Localization;
 /// 全部用户可见 UI 字符串的单例字典：zh 为源词典（键 = 属性名），en 只放覆盖项，缺键自动回退中文。
 /// XAML 绑定写法：{Binding Open, Source={x:Static loc:Translations.Instance}}（编译期检查属性名）。
 /// 切换语言时遍历所有属性名逐个 raise PropertyChanged，让全部绑定刷新；
-/// StatusText、历史节点标题等瞬态文本不回溯刷新，保持创建时的语言。
+/// StatusText 等瞬态文本与历史节点标题不回溯刷新，保持出现/创建时的语言
+/// （无瞬态状态时的初始提示 InitialStatus 例外，经 VM 派生属性随语言刷新）。
 /// </summary>
 public sealed class Translations : INotifyPropertyChanged
 {

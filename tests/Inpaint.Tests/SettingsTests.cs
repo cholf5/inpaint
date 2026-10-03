@@ -149,15 +149,16 @@ public class SettingsTests
     }
 
     [AvaloniaFact]
-    public void SettingsViewModel_语言切换后选项标签重建且选中项保持()
+    public void SettingsViewModel_语言切换后选项文案刷新且选中项保持()
     {
         var settings = new AppSettings { Theme = AppTheme.Dark };
         var vm = new SettingsViewModel(settings);
 
         Translations.Instance.SetLanguage(AppLanguage.English);
 
-        Assert.Equal("Follow system", vm.ThemeOptions[0]);
-        Assert.Equal("GPU (CoreML)", vm.DeviceOptions[2]);
-        Assert.Equal(2, vm.ThemeIndex); // 选中项不因重建而丢失
+        // 选项实例不变、只换 Label：选区不因 ItemsSource 重建而丢失/清空
+        Assert.Equal("Follow system", vm.ThemeOptions[0].Label);
+        Assert.Equal("GPU (CoreML)", vm.DeviceOptions[2].Label);
+        Assert.Equal(2, vm.ThemeIndex);
     }
 }

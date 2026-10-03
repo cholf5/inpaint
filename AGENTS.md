@@ -32,9 +32,9 @@ lxfater/inpaint-web 的 C# / .NET 10 + Avalonia 桌面重写：MI-GAN 图片修�
 
 ## 设置与本地化
 
-- 设置运行期是共享单实例 `AppSettings`（App 启动 `SettingsService.Load()` 后传给 MainWindow/ViewModel/设置窗口）：主题、语言、Real-ESRGAN 设备（`AccelerationMode`）、默认画笔大小、生成历史上限。任何属性变更即时生效并落盘——主题/语言由 `App` 订阅应用，设备由主 ViewModel 订阅重建超分引擎。SettingsWindow 只是编辑视图（`SettingsViewModel` 用字符串数组 + SelectedIndex 映射枚举），不拥有持久化。
+- 设置运行期是共享单实例 `AppSettings`（App 启动 `SettingsService.Load()` 后传给 MainWindow/ViewModel/设置窗口）：主题、语言、Real-ESRGAN 设备（`AccelerationMode`）、默认画笔大小、生成历史上限。任何属性变更即时生效并落盘——主题/语言由 `App` 订阅应用，设备由主 ViewModel 订阅重建超分引擎。SettingsWindow 只是编辑视图（`SettingsViewModel` 用跨语言稳定的 `OptionItem` 实例数组 + SelectedIndex 映射枚举，切语言只改 Label、不重建 ItemsSource，XAML 须配 ItemTemplate 绑定 Label；重建式换文案会异步清空 ComboBox 选区并把旧选中项经双向绑定推回），不拥有持久化。
 - `SettingsService`：settings.json 与模型缓存同目录（`…/Inpaint/settings.json`），枚举存名字、临时文件原子替换；文件缺失/损坏回退默认值，数值越界收敛到合法区间（手改文件兜底）。`Load/Save` 的 path 参数供单测注入临时路径。
-- 语言切换 = `Translations.SetLanguage` 逐属性 raise PropertyChanged（静态字段按声明顺序初始化，**词典必须先于 `Instance`**）；StatusText、历史节点标题等瞬态文本不回溯刷新。测试断言中文字符串的类须在构造函数固定 `SetLanguage(SimplifiedChinese)`，且程序集已禁用集合并行（Translations 是进程级单例）；切语言会牵动 headless App 启动时创建的 MainWindow 绑定，相关测试须走 `[AvaloniaFact]`（UI 线程），普通 `[Fact]` 里切语言会跨线程崩溃。
+- 语言切换 = `Translations.SetLanguage` 逐属性 raise PropertyChanged（静态字段按声明顺序初始化，**词典必须先于 `Instance`**）；StatusText 等瞬态文本与历史节点标题不回溯刷新（无瞬态状态时的初始提示经 VM 派生属性 StatusDisplay 随语言刷新）。测试断言中文字符串的类须在构造函数固定 `SetLanguage(SimplifiedChinese)`，且程序集已禁用集合并行（Translations 是进程级单例）；切语言会牵动 headless App 启动时创建的 MainWindow 绑定，相关测试须走 `[AvaloniaFact]`（UI 线程），普通 `[Fact]` 里切语言会跨线程崩溃。
 - App 层 MVVM 用 CommunityToolkit.Mvvm 源生成器：`[ObservableProperty]`、`[RelayCommand(CanExecute=...)]` + `NotifyCanExecuteChangedFor`；命令可用性统一由 `IsBusy` gate。
 - 耗时工作 `Task.Run` 下放线程池，UI 更新走 `IProgress<T>`；用户可见错误写入 `StatusText`，不向 UI 抛异常。
 - 像素级位图访问用 unsafe 指针（App 已开 AllowUnsafeBlocks）。**WriteableBitmap 有 RowBytes stride，逐行拷贝必须用它**，参见 `MainWindowViewModel.CreateBitmap/ExtractBgra`、`ImageEditorControl.PaintDisc`；Core 的转换函数则假设紧凑无 padding。
