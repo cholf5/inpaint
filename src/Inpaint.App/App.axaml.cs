@@ -23,6 +23,8 @@ public partial class App : Application
         settings.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(AppSettings.Theme)) ApplyTheme(settings.Theme);
+            else if (e.PropertyName == nameof(AppSettings.Language))
+                Translations.Instance.SetLanguage(settings.Language);
             try
             {
                 SettingsService.Save(settings);
