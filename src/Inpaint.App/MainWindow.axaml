@@ -14,38 +14,28 @@
         <KeyBinding Gesture="OemOpenBrackets" Command="{Binding DecreaseBrushSizeCommand}"/>
         <KeyBinding Gesture="OemCloseBrackets" Command="{Binding IncreaseBrushSizeCommand}"/>
     </Window.KeyBindings>
+    <!-- 三段式布局：顶栏只留文件入口与全局项，动作按钮集中到底部卡片工具栏（参考 web 版），
+         中部画布 + 右侧历史 Graph 保持原样 -->
     <DockPanel Margin="10">
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8">
-            <Button Command="{Binding OpenCommand}"
+        <!-- 顶栏：打开（文件入口）｜历史开关 + 设置齿轮（低频项收进图标） -->
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,8">
+            <Button Grid.Column="0"
+                    Command="{Binding OpenCommand}"
                     Content="{Binding Open, Source={x:Static loc:Translations.Instance}}"/>
-            <Button Command="{Binding SaveCommand}"
-                    Content="{Binding Save, Source={x:Static loc:Translations.Instance}}"/>
-            <Separator/>
-            <Button Command="{Binding UndoCommand}"
-                    Content="{Binding Undo, Source={x:Static loc:Translations.Instance}}"/>
-            <Button Command="{Binding ResetCommand}"
-                    Content="{Binding ResetToOriginal, Source={x:Static loc:Translations.Instance}}"/>
-            <ToggleButton IsChecked="{Binding IsHistoryVisible}"
-                          Content="{Binding History, Source={x:Static loc:Translations.Instance}}"/>
-            <Separator/>
-            <TextBlock VerticalAlignment="Center"
-                       Text="{Binding Brush, Source={x:Static loc:Translations.Instance}}"/>
-            <Slider x:Name="BrushSlider" Width="150" VerticalAlignment="Center" Minimum="4" Maximum="160"
-                    Value="{Binding BrushSize}"/>
-            <TextBlock VerticalAlignment="Center" Width="36"
-                       Text="{Binding BrushSize, StringFormat='{}{0:F0}'}"/>
-            <Button Command="{Binding ClearMaskCommand}"
-                    Content="{Binding ClearMask, Source={x:Static loc:Translations.Instance}}"/>
-            <Separator/>
-            <Button Command="{Binding InpaintCommand}" FontWeight="Bold"
-                    Content="{Binding Inpaint, Source={x:Static loc:Translations.Instance}}"/>
-            <Button Command="{Binding UpscaleCommand}"
-                    Content="{Binding Upscale, Source={x:Static loc:Translations.Instance}}"/>
-            <Separator/>
-            <Button Click="OnSettingsClick"
-                    Content="{Binding Settings, Source={x:Static loc:Translations.Instance}}"/>
-        </StackPanel>
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                <ToggleButton IsChecked="{Binding IsHistoryVisible}"
+                              Content="{Binding History, Source={x:Static loc:Translations.Instance}}"/>
+                <!-- 图标取自 heroicons solid cog-6-tooth（MIT），F0=evenodd 对应源 SVG 的 fill-rule -->
+                <Button Click="OnSettingsClick" Padding="8"
+                        ToolTip.Tip="{Binding Settings, Source={x:Static loc:Translations.Instance}}">
+                    <Path Width="18" Height="18" Stretch="Uniform"
+                          Fill="{Binding $parent[Button].Foreground}"
+                          Data="F0 M11.078 2.25c-.917 0-1.699.663-1.85 1.567L9.05 4.889c-.02.12-.115.26-.297.348a7.493 7.493 0 0 0-.986.57c-.166.115-.334.126-.45.083L6.3 5.508a1.875 1.875 0 0 0-2.282.819l-.922 1.597a1.875 1.875 0 0 0 .432 2.385l.84.692c.095.078.17.229.154.43a7.598 7.598 0 0 0 0 1.139c.015.2-.059.352-.153.43l-.841.692a1.875 1.875 0 0 0-.432 2.385l.922 1.597a1.875 1.875 0 0 0 2.282.818l1.019-.382c.115-.043.283-.031.45.082.312.214.641.405.985.57.182.088.277.228.297.35l.178 1.071c.151.904.933 1.567 1.85 1.567h1.844c.916 0 1.699-.663 1.85-1.567l.178-1.072c.02-.12.114-.26.297-.349.344-.165.673-.356.985-.57.167-.114.335-.125.45-.082l1.02.382a1.875 1.875 0 0 0 2.28-.819l.923-1.597a1.875 1.875 0 0 0-.432-2.385l-.84-.692c-.095-.078-.17-.229-.154-.43a7.614 7.614 0 0 0 0-1.139c-.016-.2.059-.352.153-.43l.84-.692c.708-.582.891-1.59.433-2.385l-.922-1.597a1.875 1.875 0 0 0-2.282-.818l-1.02.382c-.114.043-.282.031-.449-.083a7.49 7.49 0 0 0-.985-.57c-.183-.087-.277-.227-.297-.348l-.179-1.072a1.875 1.875 0 0 0-1.85-1.567h-1.843ZM12 15.75a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z"/>
+                </Button>
+            </StackPanel>
+        </Grid>
 
+        <!-- 状态条：窗口最底一条（进度条 + 状态文字） -->
         <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,*" Margin="0,8,0,0">
             <ProgressBar Grid.Column="0" Width="180" Height="8" VerticalAlignment="Center"
                          Minimum="0" Maximum="100" Value="{Binding Progress}"
@@ -53,6 +43,36 @@
             <TextBlock Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center"
                        Text="{Binding StatusText}" TextTrimming="CharacterEllipsis"/>
         </Grid>
+
+        <!-- 底部工具栏卡片，按工作流分组：撤销纠正 → 画笔涂抹 → 模型生成 → 保存输出；
+             修复是唯一 accent 主按钮 -->
+        <Border DockPanel.Dock="Bottom" HorizontalAlignment="Center" Margin="0,10,0,0"
+                Padding="12,8" CornerRadius="8" BorderThickness="1" BorderBrush="#20000000"
+                Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Command="{Binding UndoCommand}"
+                        Content="{Binding Undo, Source={x:Static loc:Translations.Instance}}"/>
+                <Button Command="{Binding ResetCommand}"
+                        Content="{Binding ResetToOriginal, Source={x:Static loc:Translations.Instance}}"/>
+                <Separator/>
+                <TextBlock VerticalAlignment="Center"
+                           Text="{Binding Brush, Source={x:Static loc:Translations.Instance}}"/>
+                <Slider x:Name="BrushSlider" Width="150" VerticalAlignment="Center" Minimum="4" Maximum="160"
+                        Value="{Binding BrushSize}"/>
+                <TextBlock VerticalAlignment="Center" Width="36"
+                           Text="{Binding BrushSize, StringFormat='{}{0:F0}'}"/>
+                <Button Command="{Binding ClearMaskCommand}"
+                        Content="{Binding ClearMask, Source={x:Static loc:Translations.Instance}}"/>
+                <Separator/>
+                <Button Classes="accent" Command="{Binding InpaintCommand}"
+                        Content="{Binding Inpaint, Source={x:Static loc:Translations.Instance}}"/>
+                <Button Command="{Binding UpscaleCommand}"
+                        Content="{Binding Upscale, Source={x:Static loc:Translations.Instance}}"/>
+                <Separator/>
+                <Button Command="{Binding SaveCommand}"
+                        Content="{Binding Save, Source={x:Static loc:Translations.Instance}}"/>
+            </StackPanel>
+        </Border>
 
         <Grid ColumnDefinitions="*,Auto">
             <Panel Grid.Column="0">
