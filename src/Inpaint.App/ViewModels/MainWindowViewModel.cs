@@ -216,7 +216,7 @@ public partial class MainWindowViewModel : ObservableObject
         try
         {
             await using var stream = await file.OpenWriteAsync();
-            bitmap.Save(stream);
+            bitmap.Save(stream, PngBitmapEncoderOptions.Default);
             StatusText = "已保存：" + file.Name;
         }
         catch (Exception e)
