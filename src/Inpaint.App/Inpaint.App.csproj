@@ -22,4 +22,7 @@
     <ProjectReference Include="..\Inpaint.Core\Inpaint.Core.csproj" />
     <ProjectReference Include="..\Inpaint.Inference\Inpaint.Inference.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Inpaint.Tests" />
+  </ItemGroup>
 </Project>

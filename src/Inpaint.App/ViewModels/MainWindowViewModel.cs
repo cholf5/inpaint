@@ -227,7 +227,8 @@ public partial class MainWindowViewModel : ObservableObject
 
     // ---- 内部工具 ----
 
-    private void PushHistory(Bitmap bitmap)
+    /// <summary>压入新历史并截断重做分支。internal 供单测。</summary>
+    internal void PushHistory(Bitmap bitmap)
     {
         _history.RemoveRange(_historyIndex + 1, _history.Count - _historyIndex - 1);
         _history.Add(bitmap);
@@ -256,7 +257,8 @@ public partial class MainWindowViewModel : ObservableObject
         return mask;
     }
 
-    private static WriteableBitmap CreateBitmap(PixelSize size, byte[] bgra)
+    /// <summary>Bgra8888 写入 WriteableBitmap（逐行处理 stride）。internal 供单测。</summary>
+    internal static WriteableBitmap CreateBitmap(PixelSize size, byte[] bgra)
     {
         var bitmap = new WriteableBitmap(size, new Vector(96, 96), PixelFormats.Bgra8888);
         using var frame = bitmap.Lock();
@@ -282,7 +284,8 @@ public partial class MainWindowViewModel : ObservableObject
         return bitmap;
     }
 
-    private static byte[] ExtractBgra(Bitmap bitmap)
+    /// <summary>读出紧凑 BGRA 字节；Rgba8888 源交换红蓝。internal 供单测。</summary>
+    internal static byte[] ExtractBgra(Bitmap bitmap)
     {
         int width = bitmap.PixelSize.Width;
         int height = bitmap.PixelSize.Height;
