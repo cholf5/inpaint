@@ -4,4 +4,7 @@
     <Project Path="src/Inpaint.Core/Inpaint.Core.csproj" />
     <Project Path="src/Inpaint.Inference/Inpaint.Inference.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Inpaint.Tests/Inpaint.Tests.csproj" />
+  </Folder>
 </Solution>

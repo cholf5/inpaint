@@ -5,7 +5,7 @@ namespace Inpaint.Inference;
 
 /// <summary>
 /// Real-ESRGAN ×4 超分模型（realesrgan-x4.onnx，输入名 "input.1"）。
-/// 模型按 64×64 固定块推理：核心区 58×58，四周外扩 6px 重叠避免接缝，
+/// 模型按 64×64 固定块推理：核心区 52×52，四周外扩 6px 重叠避免接缝，
 /// 越界处钳制到边缘像素；输出为 4 倍尺寸的 RGB CHW float（0..1）。
 /// 分块方式与网页版 tileProc 完全一致。
 /// </summary>
@@ -77,8 +77,8 @@ public sealed class UpscaleEngine : IDisposable
         return output;
     }
 
-    /// <summary>把源图中 (offX, offY) 起的核心区外扩 padding 组装成 64×64 tile，越界钳制到边缘像素。</summary>
-    private static void FillTile(
+    /// <summary>把源图中 (offX, offY) 起的核心区外扩 padding 组装成 64×64 tile，越界钳制到边缘像素。internal 供分块单测。</summary>
+    internal static void FillTile(
         float[] src, int srcW, int srcH, int offX, int offY, int coreW, int coreH,
         float[] tile, int tilePlane)
     {
@@ -100,8 +100,8 @@ public sealed class UpscaleEngine : IDisposable
         }
     }
 
-    /// <summary>从 256×256 的 tile 输出中拷出核心区（去掉 padding 的 4 倍放大结果）。</summary>
-    private static void CopyTileCore(
+    /// <summary>从 256×256 的 tile 输出中拷出核心区（去掉 padding 的 4 倍放大结果）。internal 供分块单测。</summary>
+    internal static void CopyTileCore(
         DenseTensor<float> outTile, float[] output, int outW, int outH,
         int dstX, int dstY, int coreW, int coreH)
     {

@@ -10,4 +10,8 @@
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.30.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Inpaint.Tests" />
+  </ItemGroup>
+
 </Project>

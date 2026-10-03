@@ -5,7 +5,7 @@ lxfater/inpaint-web 的 C# / .NET 10 + Avalonia 桌面重写：MI-GAN 图片修�
 ## 构建 / 运行
 
 - 需要 .NET 10 SDK。`dotnet build Inpaint.slnx`；`dotnet run --project src/Inpaint.App`。
-- **没有测试项目，也没有 .editorconfig / 格式化配置**——验证手段就是编译通过加手动运行。别去找 `dotnet test`。
+- 单元测试在 `tests/Inpaint.Tests`（xUnit），`dotnet test` 运行；覆盖 Core 布局/遮罩转换与 Inference 分块语义（`UpscaleEngine.FillTile`/`CopyTileCore` 为 internal，经 `InternalsVisibleTo` 供测试），不含需要模型文件或 ONNX session 的路径。**没有 .editorconfig / 格式化配置**——除测试外，验证手段就是编译通过加手动运行。
 
 ## 目录与分层
 
