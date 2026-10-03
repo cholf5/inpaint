@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Inpaint.App/Inpaint.App.csproj" />
+    <Project Path="src/Inpaint.Core/Inpaint.Core.csproj" />
+    <Project Path="src/Inpaint.Inference/Inpaint.Inference.csproj" />
+  </Folder>
+</Solution>

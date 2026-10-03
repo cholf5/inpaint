@@ -1,0 +1,53 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:Inpaint.App.Controls"
+        xmlns:vm="using:Inpaint.App.ViewModels"
+        x:Class="Inpaint.App.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="Inpaint — 图片修复与高清化"
+        Width="1200" Height="820" MinWidth="860" MinHeight="600">
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenCommand}"/>
+        <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveCommand}"/>
+        <KeyBinding Gesture="Ctrl+Z" Command="{Binding UndoCommand}"/>
+    </Window.KeyBindings>
+    <DockPanel Margin="10">
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8">
+            <Button Command="{Binding OpenCommand}">打开图片…</Button>
+            <Button Command="{Binding SaveCommand}">保存 PNG</Button>
+            <Separator/>
+            <Button Command="{Binding UndoCommand}">撤销</Button>
+            <Button Command="{Binding ResetCommand}">回到原图</Button>
+            <Separator/>
+            <TextBlock VerticalAlignment="Center" Text="画笔"/>
+            <Slider Width="150" VerticalAlignment="Center" Minimum="4" Maximum="160"
+                    Value="{Binding BrushSize}"/>
+            <TextBlock VerticalAlignment="Center" Width="36"
+                       Text="{Binding BrushSize, StringFormat='{}{0:F0}'}"/>
+            <Button Command="{Binding ClearMaskCommand}">清除涂抹</Button>
+            <Separator/>
+            <Button Command="{Binding InpaintCommand}" FontWeight="Bold">修复涂抹区域</Button>
+            <Button Command="{Binding UpscaleCommand}">高清放大 ×4</Button>
+        </StackPanel>
+
+        <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,*" Margin="0,8,0,0">
+            <ProgressBar Grid.Column="0" Width="180" Height="8" VerticalAlignment="Center"
+                         Minimum="0" Maximum="100" Value="{Binding Progress}"
+                         IsVisible="{Binding IsBusy}"/>
+            <TextBlock Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center"
+                       Text="{Binding StatusText}" TextTrimming="CharacterEllipsis"/>
+        </Grid>
+
+        <Panel>
+            <controls:ImageEditorControl x:Name="Editor"
+                                         Source="{Binding CurrentImage}"
+                                         Mask="{Binding MaskImage}"
+                                         BrushSize="{Binding BrushSize}"
+                                         IsPaintEnabled="{Binding !IsBusy}"/>
+            <TextBlock IsVisible="{Binding !HasImage}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       FontSize="18" Foreground="Gray"
+                       Text="把图片拖进窗口，或点击「打开图片…」"/>
+        </Panel>
+    </DockPanel>
+</Window>
