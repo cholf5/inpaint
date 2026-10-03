@@ -18,12 +18,21 @@ public sealed class UpscaleEngine : IDisposable
     private InferenceSession? _session;
     private string _inputName = "input.1";
     private string _outputName = "1895";
+    private readonly AccelerationMode _accelerationMode;
+
+    /// <summary>accelerationMode 来自设置界面（Auto/Cpu/Gpu），仅在会话首次创建时生效。</summary>
+    public UpscaleEngine(AccelerationMode accelerationMode = AccelerationMode.Auto)
+    {
+        _accelerationMode = accelerationMode;
+    }
 
     public static async Task<UpscaleEngine> CreateAsync(
-        IProgress<double>? downloadProgress = null, CancellationToken ct = default)
+        IProgress<double>? downloadProgress = null,
+        CancellationToken ct = default,
+        AccelerationMode accelerationMode = AccelerationMode.Auto)
     {
         await ModelStore.EnsureAsync(KnownModels.RealEsrganX4, downloadProgress, ct);
-        return new UpscaleEngine();
+        return new UpscaleEngine(accelerationMode);
     }
 
     /// <summary>imageChw 为 [3,H,W] float 0..1。tileProgress 上报 0..100 分块进度。</summary>
@@ -34,7 +43,8 @@ public sealed class UpscaleEngine : IDisposable
         if (_session is null)
         {
             _session = new InferenceSession(
-                ModelStore.GetPath(KnownModels.RealEsrganX4), OrtConfig.MakeSessionOptions(allowCoreML: true));
+                ModelStore.GetPath(KnownModels.RealEsrganX4),
+                OrtConfig.MakeSessionOptions(allowCoreML: true, _accelerationMode));
             _inputName = _session.InputMetadata.Keys.FirstOrDefault() ?? _inputName;
             _outputName = _session.OutputMetadata.Keys.FirstOrDefault() ?? _outputName;
         }

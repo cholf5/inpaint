@@ -5,9 +5,12 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Platform.Storage;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Inpaint.App.Localization;
+using Inpaint.App.Services;
 using Inpaint.Core;
 using Inpaint.Inference;
 
@@ -15,9 +18,6 @@ namespace Inpaint.App.ViewModels;
 
 public partial class MainWindowViewModel : ObservableObject
 {
-    /// <summary>历史节点总数上限。超限时优先丢弃最旧的非当前分支；原图（根）永不丢弃。</summary>
-    private const int MaxHistory = 25;
-
     private const int ThumbnailMaxSide = 96;
 
     /// <summary>画笔大小范围（与 MainWindow 滑块一致）。internal 供单测。</summary>
@@ -25,22 +25,21 @@ public partial class MainWindowViewModel : ObservableObject
     internal const double MaxBrushSize = 160;
     private const double BrushSizeStep = 10;
 
-    private static readonly FilePickerFileType ImageFileTypes = new("图片")
-    {
-        Patterns = ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp"],
-    };
+    private static readonly string[] ImagePatterns = ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp"];
 
     private readonly IStorageProvider? _storage;
     private readonly IClipboard? _clipboard;
+    private readonly AppSettings _settings;
     private ImageHistoryNode? _root;
     private InpaintEngine? _inpaintEngine;
     private UpscaleEngine? _upscaleEngine;
+    private bool _resetUpscaleWhenIdle;
 
     [ObservableProperty] private Bitmap? _currentImage;
     [ObservableProperty] private WriteableBitmap? _maskImage;
     [ObservableProperty] private double _brushSize = 40;
     [ObservableProperty] private double _progress;
-    [ObservableProperty] private string _statusText = "打开一张图片，涂抹掉不想要的内容";
+    [ObservableProperty] private string _statusText = Translations.Instance.InitialStatus;
     [ObservableProperty] private IReadOnlyList<ImageHistoryNode> _historyNodes = [];
     [ObservableProperty] private bool _isHistoryVisible = true;
 
@@ -68,10 +67,63 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(SaveNodeCommand))]
     private bool _isBusy;
 
-    public MainWindowViewModel(IStorageProvider? storage, IClipboard? clipboard)
+    public MainWindowViewModel(IStorageProvider? storage, IClipboard? clipboard, AppSettings? settings = null)
     {
         _storage = storage;
         _clipboard = clipboard;
+        _settings = settings ?? new AppSettings();
+        // 画笔初始值来自设置（钳制到滑块范围）；后续设置变更经 OnSettingsChanged 同步
+        _brushSize = Math.Clamp(_settings.DefaultBrushSize, MinBrushSize, MaxBrushSize);
+        _settings.PropertyChanged += OnSettingsChanged;
+        // 语言切换时刷新历史面板标题这类派生文本；StatusText 等瞬态文本保持原语言直到下次更新
+        Translations.Instance.PropertyChanged += (_, _) => OnPropertyChanged(nameof(HistoryTitle));
+    }
+
+    /// <summary>历史面板标题（含节点计数）；历史或语言变化时刷新。</summary>
+    public string HistoryTitle => string.Format(Translations.Instance.HistoryTitleFormat, HistoryNodes.Count);
+
+    /// <summary>共享设置实例（设置窗口直接编辑它，主窗口经设备/画笔订阅响应变更）。</summary>
+    public AppSettings Settings => _settings;
+
+    partial void OnHistoryNodesChanged(IReadOnlyList<ImageHistoryNode> value) =>
+        OnPropertyChanged(nameof(HistoryTitle));
+
+    /// <summary>
+    /// 设置窗口实时修改：超分设备变化丢弃已建会话（下次运行按新设备重建），
+    /// 默认画笔大小变化同步到当前画笔。internal 供单测。
+    /// </summary>
+    internal void OnSettingsChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        switch (e.PropertyName)
+        {
+            case nameof(AppSettings.UpscaleDevice):
+                ResetUpscaleEngineWhenIdle();
+                break;
+            case nameof(AppSettings.DefaultBrushSize):
+                BrushSize = Math.Clamp(_settings.DefaultBrushSize, MinBrushSize, MaxBrushSize);
+                break;
+        }
+    }
+
+    /// <summary>设备切换后重建超分引擎；正在推理时先记标记，等操作结束再释放，避免释放运行中的会话。</summary>
+    private void ResetUpscaleEngineWhenIdle()
+    {
+        if (IsBusy)
+        {
+            _resetUpscaleWhenIdle = true;
+            return;
+        }
+        var old = _upscaleEngine;
+        _upscaleEngine = null;
+        if (old is not null) Task.Run(old.Dispose);
+    }
+
+    /// <summary>繁忙期间收到过设备切换请求时，在操作结束（IsBusy 复位）后执行延迟释放。</summary>
+    private void ResetUpscaleEngineIfFlagged()
+    {
+        if (!_resetUpscaleWhenIdle) return;
+        _resetUpscaleWhenIdle = false;
+        ResetUpscaleEngineWhenIdle();
     }
 
     private bool NotBusy() => !IsBusy;
@@ -87,9 +139,9 @@ public partial class MainWindowViewModel : ObservableObject
         if (_storage is null) return;
         var files = await _storage.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "打开图片",
+            Title = Translations.Instance.PickerOpenTitle,
             AllowMultiple = false,
-            FileTypeFilter = [ImageFileTypes],
+            FileTypeFilter = [new FilePickerFileType(Translations.Instance.FileTypeImages) { Patterns = ImagePatterns }],
         });
         if (files.Count == 0) return;
         await using var stream = await files[0].OpenReadAsync();
@@ -110,7 +162,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
         catch (Exception e)
         {
-            StatusText = "无法打开图片：" + e.Message;
+            StatusText = string.Format(Translations.Instance.CannotOpen, e.Message);
         }
         await Task.CompletedTask;
     }
@@ -119,14 +171,19 @@ public partial class MainWindowViewModel : ObservableObject
     public void AdoptBitmap(Bitmap bitmap)
     {
         if (_root is not null) DisposeTree(_root);
-        var node = new ImageHistoryNode(bitmap, "原图", null) { Thumbnail = CreateThumbnail(bitmap) };
+        var node = new ImageHistoryNode(bitmap, Translations.Instance.OriginalNode, null)
+        {
+            Thumbnail = CreateThumbnail(bitmap)
+        };
         _root = node;
         CurrentNode = node;
         RebuildHistory();
         CurrentImage = bitmap;
         SetMask(bitmap.PixelSize);
         HasImage = true;
-        StatusText = $"已加载 {bitmap.PixelSize.Width}×{bitmap.PixelSize.Height}，涂抹后点「修复涂抹区域」";
+        StatusText = string.Format(
+            Translations.Instance.LoadedStatus,
+            bitmap.PixelSize.Width, bitmap.PixelSize.Height, Translations.Instance.Inpaint);
         UndoCommand.NotifyCanExecuteChanged();
     }
 
@@ -151,23 +208,26 @@ public partial class MainWindowViewModel : ObservableObject
         {
             var size = current.PixelSize;
             Progress = 0;
-            StatusText = "正在准备修复模型…";
+            StatusText = Translations.Instance.PreparingInpaint;
             _inpaintEngine ??= await InpaintEngine.CreateAsync(DownloadProgress());
-            StatusText = "正在修复…";
+            StatusText = Translations.Instance.Inpainting;
             var imageChw = ImageProcessing.BgraToRgbChw(ExtractBgra(current), size.Width, size.Height);
             var maskChw = ImageProcessing.MaskBgraToChw(ExtractBgra(mask), size.Width, size.Height);
             var output = await Task.Run(() => _inpaintEngine.Run(size.Width, size.Height, imageChw, maskChw));
-            PushHistory(CreateBitmap(size, ImageProcessing.RgbChwToBgra(output, size.Width, size.Height)), "修复");
+            PushHistory(
+                CreateBitmap(size, ImageProcessing.RgbChwToBgra(output, size.Width, size.Height)),
+                Translations.Instance.NodeInpaint);
             SetMask(size);
-            StatusText = $"修复完成（{size.Width}×{size.Height}）";
+            StatusText = string.Format(Translations.Instance.InpaintDone, size.Width, size.Height);
         }
         catch (Exception e)
         {
-            StatusText = "修复失败：" + e.Message;
+            StatusText = string.Format(Translations.Instance.InpaintFailed, e.Message);
         }
         finally
         {
             IsBusy = false;
+            ResetUpscaleEngineIfFlagged();
         }
     }
 
@@ -182,24 +242,29 @@ public partial class MainWindowViewModel : ObservableObject
         {
             var size = current.PixelSize;
             Progress = 0;
-            StatusText = "正在准备超分模型…";
-            _upscaleEngine ??= await UpscaleEngine.CreateAsync(DownloadProgress());
-            StatusText = $"正在放大 {size.Width}×{size.Height} → {size.Width * 4}×{size.Height * 4}…";
+            StatusText = Translations.Instance.PreparingUpscale;
+            _upscaleEngine ??= await UpscaleEngine.CreateAsync(
+                DownloadProgress(), accelerationMode: _settings.UpscaleDevice);
+            StatusText = string.Format(
+                Translations.Instance.Upscaling, size.Width, size.Height, size.Width * 4, size.Height * 4);
             var chw = ImageProcessing.BgraToRgbChwF32(ExtractBgra(current), size.Width, size.Height);
             var output = await Task.Run(
                 () => _upscaleEngine.Run(size.Width, size.Height, chw, TileProgress()));
             var newSize = new PixelSize(size.Width * 4, size.Height * 4);
-            PushHistory(CreateBitmap(newSize, ImageProcessing.RgbChwF32ToBgra(output, newSize.Width, newSize.Height)), "放大 ×4");
+            PushHistory(
+                CreateBitmap(newSize, ImageProcessing.RgbChwF32ToBgra(output, newSize.Width, newSize.Height)),
+                Translations.Instance.NodeUpscale);
             SetMask(newSize);
-            StatusText = $"放大完成（{newSize.Width}×{newSize.Height}）";
+            StatusText = string.Format(Translations.Instance.UpscaleDone, newSize.Width, newSize.Height);
         }
         catch (Exception e)
         {
-            StatusText = "放大失败：" + e.Message;
+            StatusText = string.Format(Translations.Instance.UpscaleFailed, e.Message);
         }
         finally
         {
             IsBusy = false;
+            ResetUpscaleEngineIfFlagged();
         }
     }
 
@@ -210,7 +275,7 @@ public partial class MainWindowViewModel : ObservableObject
     private void SelectNode(ImageHistoryNode? node)
     {
         if (node is null || node == CurrentNode) return;
-        SwitchTo(node, $"已切换到「{node.Title}」，继续修复/放大将开新车道分叉");
+        SwitchTo(node, string.Format(Translations.Instance.SwitchedToNode, node.Title));
     }
 
     /// <summary>撤销 = 在历史树上移动到父节点。</summary>
@@ -218,7 +283,7 @@ public partial class MainWindowViewModel : ObservableObject
     private void Undo()
     {
         if (CurrentNode?.Parent is not { } parent) return;
-        SwitchTo(parent, "已撤销");
+        SwitchTo(parent, Translations.Instance.Undone);
     }
 
     /// <summary>回到原图 = 移动到根节点；其余分支保留，可随时点击切回。</summary>
@@ -226,7 +291,7 @@ public partial class MainWindowViewModel : ObservableObject
     private void Reset()
     {
         if (_root is null || _root == CurrentNode) return;
-        SwitchTo(_root, "已回到原图");
+        SwitchTo(_root, Translations.Instance.BackToOriginal);
     }
 
     /// <summary>右键菜单：把任意历史图复制到系统剪贴板。</summary>
@@ -239,11 +304,11 @@ public partial class MainWindowViewModel : ObservableObject
             var transfer = new DataTransfer();
             transfer.Add(DataTransferItem.Create<Bitmap>(DataFormat.Bitmap, bitmap));
             await _clipboard.SetDataAsync(transfer);
-            StatusText = $"已复制「{node.Title}」到剪贴板";
+            StatusText = string.Format(Translations.Instance.CopiedToClipboard, node.Title);
         }
         catch (Exception e)
         {
-            StatusText = "复制失败：" + e.Message;
+            StatusText = string.Format(Translations.Instance.CopyFailed, e.Message);
         }
     }
 
@@ -259,7 +324,7 @@ public partial class MainWindowViewModel : ObservableObject
     private void ClearMask()
     {
         if (CurrentImage is { } bitmap) SetMask(bitmap.PixelSize);
-        StatusText = "已清除涂抹";
+        StatusText = Translations.Instance.MaskCleared;
     }
 
     /// <summary>工具栏「保存 PNG」：保存当前预览图。</summary>
@@ -309,7 +374,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         if (_root is null) return;
         bool removed = false;
-        while (AllNodes(_root).Count() > MaxHistory)
+        while (AllNodes(_root).Count() > _settings.MaxHistory)
         {
             var path = CurrentPathSet();
             var victim = AllNodes(_root)
@@ -435,27 +500,27 @@ public partial class MainWindowViewModel : ObservableObject
         if (_storage is null) return;
         var file = await _storage.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            Title = "保存图片",
+            Title = Translations.Instance.PickerSaveTitle,
             DefaultExtension = "png",
-            FileTypeChoices = [new FilePickerFileType("PNG 图片") { Patterns = ["*.png"] }],
+            FileTypeChoices = [new FilePickerFileType(Translations.Instance.PngFileType) { Patterns = ["*.png"] }],
         });
         if (file is null) return;
         try
         {
             await using var stream = await file.OpenWriteAsync();
             bitmap.Save(stream);
-            StatusText = "已保存：" + file.Name;
+            StatusText = string.Format(Translations.Instance.Saved, file.Name);
         }
         catch (Exception e)
         {
-            StatusText = "保存失败：" + e.Message;
+            StatusText = string.Format(Translations.Instance.SaveFailed, e.Message);
         }
     }
 
     private IProgress<double> DownloadProgress() => new Progress<double>(p =>
     {
         Progress = p;
-        StatusText = $"正在下载模型 {p:F0}%（首次使用需下载，之后有本地缓存）";
+        StatusText = string.Format(Translations.Instance.DownloadingModel, p);
     });
 
     private IProgress<double> TileProgress() => new Progress<double>(p => Progress = p);

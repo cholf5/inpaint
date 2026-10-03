@@ -1,10 +1,11 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="using:Inpaint.App.Controls"
+        xmlns:loc="using:Inpaint.App.Localization"
         xmlns:vm="using:Inpaint.App.ViewModels"
         x:Class="Inpaint.App.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Title="Inpaint — 图片修复与高清化"
+        Title="{Binding AppTitle, Source={x:Static loc:Translations.Instance}}"
         Width="1200" Height="820" MinWidth="860" MinHeight="600">
     <Window.KeyBindings>
         <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenCommand}"/>
@@ -15,22 +16,34 @@
     </Window.KeyBindings>
     <DockPanel Margin="10">
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8">
-            <Button Command="{Binding OpenCommand}">打开图片…</Button>
-            <Button Command="{Binding SaveCommand}">保存 PNG</Button>
+            <Button Command="{Binding OpenCommand}"
+                    Content="{Binding Open, Source={x:Static loc:Translations.Instance}}"/>
+            <Button Command="{Binding SaveCommand}"
+                    Content="{Binding Save, Source={x:Static loc:Translations.Instance}}"/>
             <Separator/>
-            <Button Command="{Binding UndoCommand}">撤销</Button>
-            <Button Command="{Binding ResetCommand}">回到原图</Button>
-            <ToggleButton IsChecked="{Binding IsHistoryVisible}">历史</ToggleButton>
+            <Button Command="{Binding UndoCommand}"
+                    Content="{Binding Undo, Source={x:Static loc:Translations.Instance}}"/>
+            <Button Command="{Binding ResetCommand}"
+                    Content="{Binding ResetToOriginal, Source={x:Static loc:Translations.Instance}}"/>
+            <ToggleButton IsChecked="{Binding IsHistoryVisible}"
+                          Content="{Binding History, Source={x:Static loc:Translations.Instance}}"/>
             <Separator/>
-            <TextBlock VerticalAlignment="Center" Text="画笔"/>
+            <TextBlock VerticalAlignment="Center"
+                       Text="{Binding Brush, Source={x:Static loc:Translations.Instance}}"/>
             <Slider x:Name="BrushSlider" Width="150" VerticalAlignment="Center" Minimum="4" Maximum="160"
                     Value="{Binding BrushSize}"/>
             <TextBlock VerticalAlignment="Center" Width="36"
                        Text="{Binding BrushSize, StringFormat='{}{0:F0}'}"/>
-            <Button Command="{Binding ClearMaskCommand}">清除涂抹</Button>
+            <Button Command="{Binding ClearMaskCommand}"
+                    Content="{Binding ClearMask, Source={x:Static loc:Translations.Instance}}"/>
             <Separator/>
-            <Button Command="{Binding InpaintCommand}" FontWeight="Bold">修复涂抹区域</Button>
-            <Button Command="{Binding UpscaleCommand}">高清放大 ×4</Button>
+            <Button Command="{Binding InpaintCommand}" FontWeight="Bold"
+                    Content="{Binding Inpaint, Source={x:Static loc:Translations.Instance}}"/>
+            <Button Command="{Binding UpscaleCommand}"
+                    Content="{Binding Upscale, Source={x:Static loc:Translations.Instance}}"/>
+            <Separator/>
+            <Button Click="OnSettingsClick"
+                    Content="{Binding Settings, Source={x:Static loc:Translations.Instance}}"/>
         </StackPanel>
 
         <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,*" Margin="0,8,0,0">
@@ -51,7 +64,7 @@
                 <TextBlock IsVisible="{Binding !HasImage}"
                            HorizontalAlignment="Center" VerticalAlignment="Center"
                            FontSize="18" Foreground="Gray"
-                           Text="把图片拖进窗口，或点击「打开图片…」"/>
+                           Text="{Binding DropHint, Source={x:Static loc:Translations.Instance}}"/>
             </Panel>
 
             <!-- 生成历史：整块 git 风格竖向 Graph（车道 = 分支，行 = 时间），
@@ -61,10 +74,10 @@
                     IsVisible="{Binding IsHistoryVisible}">
                 <DockPanel Margin="4">
                     <TextBlock DockPanel.Dock="Top" Margin="4,4,4,8" FontWeight="Bold"
-                               Text="{Binding HistoryNodes.Count, StringFormat='{}生成历史（{0}）'}"/>
+                               Text="{Binding HistoryTitle}"/>
                     <TextBlock DockPanel.Dock="Top" IsVisible="{Binding !HasImage}" Foreground="Gray"
                                TextWrapping="Wrap"
-                               Text="打开或生成图片后，这里会记录每一次修复与放大"/>
+                               Text="{Binding HistoryEmptyHint, Source={x:Static loc:Translations.Instance}}"/>
                     <ScrollViewer>
                         <controls:HistoryGraphView x:Name="HistoryGraph" MinHeight="80"
                                                    Nodes="{Binding HistoryNodes}"

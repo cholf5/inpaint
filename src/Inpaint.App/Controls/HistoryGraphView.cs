@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.VisualTree;
+using Inpaint.App.Localization;
 using Inpaint.App.ViewModels;
 
 namespace Inpaint.App.Controls;
@@ -61,8 +62,8 @@ public class HistoryGraphView : Control
         AvaloniaProperty.Register<HistoryGraphView, ICommand?>(nameof(SaveNodeCommand));
 
     private readonly ContextMenu _nodeMenu = new();
-    private readonly MenuItem _copyItem = new() { Header = "复制图片" };
-    private readonly MenuItem _saveItem = new() { Header = "下载 PNG" };
+    private readonly MenuItem _copyItem = new();
+    private readonly MenuItem _saveItem = new();
 
     static HistoryGraphView()
     {
@@ -225,7 +226,7 @@ public class HistoryGraphView : Control
         base.OnPointerMoved(e);
     }
 
-    /// <summary>右键请求：命中节点则把菜单命令指向它，空白处不弹菜单。</summary>
+    /// <summary>右键请求：命中节点则把菜单命令指向它，空白处不弹菜单。菜单头即时取当前语言。</summary>
     private void OnContextRequested(object? sender, ContextRequestedEventArgs e)
     {
         Point position = e.TryGetPosition(this, out var pointer)
@@ -236,6 +237,8 @@ public class HistoryGraphView : Control
             e.Handled = true;
             return;
         }
+        _copyItem.Header = Translations.Instance.CopyImage;
+        _saveItem.Header = Translations.Instance.DownloadPng;
         _copyItem.Command = CopyNodeCommand;
         _copyItem.CommandParameter = node;
         _saveItem.Command = SaveNodeCommand;

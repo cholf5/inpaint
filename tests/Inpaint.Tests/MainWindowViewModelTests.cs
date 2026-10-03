@@ -4,7 +4,10 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using Inpaint.App.Localization;
+using Inpaint.App.Services;
 using Inpaint.App.ViewModels;
+using Inpaint.Inference;
 
 namespace Inpaint.Tests;
 
@@ -14,6 +17,10 @@ namespace Inpaint.Tests;
 /// </summary>
 public class MainWindowViewModelTests
 {
+    public MainWindowViewModelTests() =>
+        // 断言里依赖中文字符串（如「无法打开图片」），固定语言避免随系统/用户设置漂移
+        Translations.Instance.SetLanguage(AppLanguage.SimplifiedChinese);
+
     private static WriteableBitmap MakeBitmap(int width, int height)
     {
         var bmp = new WriteableBitmap(new PixelSize(width, height), new Vector(96, 96), PixelFormats.Bgra8888);
@@ -294,5 +301,35 @@ public class MainWindowViewModelTests
 
         // Rgba8888 → Bgra8888：R/B 对调，G/A 不变
         Assert.Equal(new byte[] { 3, 2, 1, 255 }, MainWindowViewModel.ExtractBgra(rgba));
+    }
+
+    [AvaloniaFact]
+    public void 设置_默认画笔与历史上限生效_设备切换空闲时无副作用()
+    {
+        var settings = new AppSettings { DefaultBrushSize = 88, MaxHistory = 10 };
+        var vm = new MainWindowViewModel(null, null, settings);
+
+        Assert.Equal(88, vm.BrushSize);
+
+        // 历史上限来自设置：推 15 项应裁剪到 10（原 const 25 的行为由默认设置覆盖）
+        PushChain(vm, 1, 15);
+        Assert.Equal(10, vm.HistoryNodes.Count);
+
+        // 设备切换：引擎尚未创建时应无副作用、不进入忙碌
+        settings.UpscaleDevice = AccelerationMode.Gpu;
+        Assert.False(vm.IsBusy);
+
+        // 默认画笔变化实时同步到当前画笔
+        settings.DefaultBrushSize = 120;
+        Assert.Equal(120, vm.BrushSize);
+    }
+
+    [AvaloniaFact]
+    public void 设置_画笔默认值越界时钳制到滑块范围()
+    {
+        var settings = new AppSettings { DefaultBrushSize = 9999 };
+        var vm = new MainWindowViewModel(null, null, settings);
+
+        Assert.Equal(MainWindowViewModel.MaxBrushSize, vm.BrushSize);
     }
 }

@@ -2,8 +2,12 @@ using Avalonia;
 using Avalonia.Headless;
 using Avalonia.Skia;
 using InpaintApp = Inpaint.App.App;
+using Xunit.Sdk;
 
 [assembly: AvaloniaTestApplication(typeof(Inpaint.Tests.TestAppBuilder))]
+
+// Translations 是进程级单例，测试间会切换语言；关闭集合并行避免串扰
+[assembly: CollectionBehavior(DisableTestParallelization = true)]
 
 namespace Inpaint.Tests;
 

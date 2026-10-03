@@ -10,6 +10,8 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Inpaint.App;
 using Inpaint.App.Controls;
+using Inpaint.App.Localization;
+using Inpaint.App.Services;
 using Inpaint.App.ViewModels;
 
 namespace Inpaint.Tests;
@@ -20,6 +22,10 @@ namespace Inpaint.Tests;
 /// </summary>
 public class HistoryGraphViewTests
 {
+    public HistoryGraphViewTests() =>
+        // 断言里依赖中文字符串（如「已复制」），固定语言避免随系统/用户设置漂移
+        Translations.Instance.SetLanguage(AppLanguage.SimplifiedChinese);
+
     // 与 HistoryGraphView 布局常量保持一致
     private const double MarginX = 14, LanePitch = 72, MarginTop = 12, RowHeight = 104, DotOffsetY = 16;
 

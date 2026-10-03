@@ -1,7 +1,9 @@
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
+using Inpaint.App.Services;
 using Inpaint.App.ViewModels;
 
 namespace Inpaint.App;
@@ -11,11 +13,16 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _brushPreviewTimer = new();
     private bool _brushSliderDragging;
 
-    public MainWindow()
+    /// <summary>settings 为运行期共享单实例（App 传入）；测试可直接构造，默认走全新默认设置、不读磁盘。</summary>
+    public MainWindow() : this(null)
+    {
+    }
+
+    public MainWindow(AppSettings? settings)
     {
         InitializeComponent();
         var topLevel = TopLevel.GetTopLevel(this);
-        var viewModel = new MainWindowViewModel(topLevel?.StorageProvider, topLevel?.Clipboard);
+        var viewModel = new MainWindowViewModel(topLevel?.StorageProvider, topLevel?.Clipboard, settings);
         DataContext = viewModel;
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DropEvent, OnDrop);
@@ -56,6 +63,13 @@ public partial class MainWindow : Window
                 if (viewModel.CurrentNode is { } node) HistoryGraph.ScrollNodeIntoView(node);
             }, DispatcherPriority.Loaded);
         };
+    }
+
+    /// <summary>打开设置窗口（模态）：共享 AppSettings，修改即时生效。</summary>
+    private async void OnSettingsClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel) return;
+        await new SettingsWindow(viewModel.Settings).ShowDialog(this);
     }
 
     private async void OnDrop(object? sender, DragEventArgs e)
