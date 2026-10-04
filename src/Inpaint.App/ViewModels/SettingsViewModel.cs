@@ -1,6 +1,6 @@
 using System.ComponentModel;
-using System.Reflection;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Inpaint.App.Localization;
 using Inpaint.App.Services;
 using Inpaint.Inference;
@@ -23,16 +23,13 @@ public sealed partial class OptionItem : ObservableObject
 /// 下拉选项用 OptionItem 数组 + SelectedIndex 与枚举按下标映射；语言切换只更新选项 Label，
 /// 不重建 ItemsSource（那会异步清空选区、并把旧选中项经双向绑定推回，吞掉语言切换）。
 /// </summary>
-public sealed class SettingsViewModel : ObservableObject
+public sealed partial class SettingsViewModel : ObservableObject
 {
     private readonly AppSettings _settings;
     private readonly Translations _t = Translations.Instance;
 
-    /// <summary>程序集版本（「关于」页展示），取 Inpaint.App 程序集而非入口程序集，测试宿主下也稳定。</summary>
-    public static string AppVersion { get; } =
-        "v" + (typeof(SettingsViewModel).Assembly.GetName().Version is { } version
-            ? version.ToString(3)
-            : "0.0.0");
+    /// <summary>程序集版本（「关于」页展示），与检查更新的比较基准同源，见 UpdateChecker.CurrentVersion。</summary>
+    public static string AppVersion { get; } = UpdateChecker.CurrentVersion;
 
     // 选项实例一次创建、跨语言复用，顺序与枚举下标一一对应；标签在构造时按当前语言填充
     private readonly OptionItem[] _themeOptions = [new(""), new(""), new("")];
@@ -97,6 +94,60 @@ public sealed class SettingsViewModel : ObservableObject
         set
         {
             if (value is { } v) _settings.MaxHistory = Math.Clamp((int)Math.Round(v), 5, 100);
+        }
+    }
+
+    /// <summary>启动时检查更新；只写设置，下次启动生效（App 启动时读取执行）。</summary>
+    public bool CheckUpdateOnStartup
+    {
+        get => _settings.CheckUpdateOnStartup;
+        set => _settings.CheckUpdateOnStartup = value;
+    }
+
+    // ---- 检查更新（「关于」页）----
+
+    /// <summary>检查进行中：期间禁用检查按钮。瞬态，不随语言切换刷新。</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CheckForUpdateCommand))]
+    private bool _isCheckingUpdate;
+
+    /// <summary>检查结果状态行；瞬态文本保持出现时的语言（约定同主窗口 StatusText）。</summary>
+    [ObservableProperty] private string? _updateCheckStatus;
+
+    /// <summary>发现新版本时的 Release 页地址；null 时隐藏跳转按钮。</summary>
+    [ObservableProperty] private string? _releaseUrl;
+
+    /// <summary>供单测注入假检查器（不打真实网络）；null 走真实检查。</summary>
+    internal Func<UpdateChecker>? UpdateCheckerFactory;
+
+    private bool CanCheckUpdate() => !IsCheckingUpdate;
+
+    [RelayCommand(CanExecute = nameof(CanCheckUpdate))]
+    private async Task CheckForUpdateAsync()
+    {
+        IsCheckingUpdate = true;
+        try
+        {
+            UpdateCheckStatus = _t.CheckingUpdate;
+            ReleaseUrl = null;
+            var result = await (UpdateCheckerFactory?.Invoke() ?? new UpdateChecker()).CheckAsync();
+            switch (result.Outcome)
+            {
+                case UpdateCheckOutcome.UpToDate:
+                    UpdateCheckStatus = string.Format(_t.UpToDateStatus, UpdateChecker.CurrentVersion);
+                    break;
+                case UpdateCheckOutcome.UpdateAvailable:
+                    UpdateCheckStatus = string.Format(_t.UpdateAvailableStatus, result.LatestVersion);
+                    ReleaseUrl = result.ReleaseUrl;
+                    break;
+                default:
+                    UpdateCheckStatus = string.Format(_t.UpdateCheckFailed, result.Error);
+                    break;
+            }
+        }
+        finally
+        {
+            IsCheckingUpdate = false;
         }
     }
 

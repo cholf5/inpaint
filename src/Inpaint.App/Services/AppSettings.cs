@@ -37,4 +37,7 @@ public partial class AppSettings : ObservableObject
 
     /// <summary>生成历史节点数上限（原 const MaxHistory = 25）。</summary>
     [ObservableProperty] private int _maxHistory = 25;
+
+    /// <summary>启动时检查更新（查询 GitHub latest Release）。默认关：应用卖点是纯本地，启动联网必须显式 opt-in。</summary>
+    [ObservableProperty] private bool _checkUpdateOnStartup = false;
 }

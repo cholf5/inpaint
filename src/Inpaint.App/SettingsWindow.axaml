@@ -53,6 +53,10 @@
                 </Grid>
                 <TextBlock Foreground="Gray" FontSize="12" TextWrapping="Wrap"
                            Text="{Binding MaxHistoryHint, Source={x:Static loc:Translations.Instance}}"/>
+                <CheckBox Content="{Binding CheckUpdateOnStartupLabel, Source={x:Static loc:Translations.Instance}}"
+                          IsChecked="{Binding CheckUpdateOnStartup}"/>
+                <TextBlock Foreground="Gray" FontSize="12" TextWrapping="Wrap"
+                           Text="{Binding CheckUpdateHint, Source={x:Static loc:Translations.Instance}}"/>
             </StackPanel>
         </TabItem>
 
@@ -155,6 +159,19 @@
                     <SelectableTextBlock Grid.Row="2" Grid.Column="1" VerticalAlignment="Center"
                                          Text="https://github.com/cholf5/inpaint"/>
                 </Grid>
+                <!-- 检查更新：结果写在状态行（瞬态，不随语言刷新）；发现新版本时才出现跳转按钮 -->
+                <Separator/>
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Content="{Binding CheckUpdateButton, Source={x:Static loc:Translations.Instance}}"
+                                Command="{Binding CheckForUpdateCommand}"/>
+                        <Button Content="{Binding OpenReleasePage, Source={x:Static loc:Translations.Instance}}"
+                                Tag="{Binding ReleaseUrl}"
+                                IsVisible="{Binding ReleaseUrl, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                Click="OnOpenLink"/>
+                    </StackPanel>
+                    <TextBlock TextWrapping="Wrap" Text="{Binding UpdateCheckStatus}"/>
+                </StackPanel>
             </StackPanel>
         </TabItem>
     </TabControl>

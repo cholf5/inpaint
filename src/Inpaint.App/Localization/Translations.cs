@@ -102,6 +102,15 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(AuthorName)] = "周尔复",
         [nameof(LicenseLabel)] = "开源许可",
         [nameof(RepoLabel)] = "仓库地址",
+        [nameof(CheckUpdateOnStartupLabel)] = "启动时检查更新",
+        [nameof(CheckUpdateHint)] =
+            "默认关闭以保持纯本地使用；开启后启动时仅向 GitHub 查询最新版本号，不上传图片等任何数据。",
+        [nameof(CheckUpdateButton)] = "检查更新",
+        [nameof(CheckingUpdate)] = "正在检查更新…",
+        [nameof(UpdateAvailableStatus)] = "发现新版本 {0}",
+        [nameof(UpToDateStatus)] = "已是最新版本（{0}）",
+        [nameof(UpdateCheckFailed)] = "检查更新失败：{0}",
+        [nameof(OpenReleasePage)] = "前往 Release 页",
     };
 
     private static readonly Dictionary<string, string> En = new()
@@ -190,6 +199,16 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(AuthorName)] = "周尔复",
         [nameof(LicenseLabel)] = "License",
         [nameof(RepoLabel)] = "Repository",
+        [nameof(CheckUpdateOnStartupLabel)] = "Check for updates at startup",
+        [nameof(CheckUpdateHint)] =
+            "Off by default to keep the app fully local; when enabled, the launch check only asks " +
+            "GitHub for the latest version number — no images or other data are uploaded.",
+        [nameof(CheckUpdateButton)] = "Check for Updates",
+        [nameof(CheckingUpdate)] = "Checking for updates…",
+        [nameof(UpdateAvailableStatus)] = "New version available: {0}",
+        [nameof(UpToDateStatus)] = "Up to date ({0})",
+        [nameof(UpdateCheckFailed)] = "Update check failed: {0}",
+        [nameof(OpenReleasePage)] = "Open Release Page",
     };
 
     public static Translations Instance { get; } = new();
@@ -329,4 +348,16 @@ public sealed class Translations : INotifyPropertyChanged
     public string AuthorName => Get();
     public string LicenseLabel => Get();
     public string RepoLabel => Get();
+
+    // ---- 检查更新 ----
+
+    /// <summary>瞬态检查结果（状态行）不经此刷新，保持出现时的语言。</summary>
+    public string CheckUpdateOnStartupLabel => Get();
+    public string CheckUpdateHint => Get();
+    public string CheckUpdateButton => Get();
+    public string CheckingUpdate => Get();
+    public string UpdateAvailableStatus => Get();
+    public string UpToDateStatus => Get();
+    public string UpdateCheckFailed => Get();
+    public string OpenReleasePage => Get();
 }

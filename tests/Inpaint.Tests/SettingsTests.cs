@@ -1,5 +1,9 @@
 using System.Globalization;
+using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
+using Inpaint.App;
 using Inpaint.App.Localization;
 using Inpaint.App.Services;
 using Inpaint.App.ViewModels;
@@ -26,6 +30,7 @@ public class SettingsTests
                 UpscaleDevice = AccelerationMode.Cpu,
                 DefaultBrushSize = 88,
                 MaxHistory = 40,
+                CheckUpdateOnStartup = true,
             };
             SettingsService.Save(settings, path);
 
@@ -36,6 +41,7 @@ public class SettingsTests
             Assert.Equal(AccelerationMode.Cpu, loaded.UpscaleDevice);
             Assert.Equal(88, loaded.DefaultBrushSize);
             Assert.Equal(40, loaded.MaxHistory);
+            Assert.True(loaded.CheckUpdateOnStartup);
         }
         finally
         {
@@ -51,6 +57,8 @@ public class SettingsTests
         Assert.Equal(AppLanguage.System, missing.Language);
         Assert.Equal(AccelerationMode.Auto, missing.UpscaleDevice);
         Assert.Equal(25, missing.MaxHistory);
+        // 启动检查更新默认关：纯本地应用，启动联网必须 opt-in
+        Assert.False(missing.CheckUpdateOnStartup);
 
         var corruptPath = TempPath(".json");
         File.WriteAllText(corruptPath, "{ not json");
@@ -151,6 +159,8 @@ public class SettingsTests
         Assert.Equal(120, settings.DefaultBrushSize);
         vm.MaxHistoryValue = 40;
         Assert.Equal(40, settings.MaxHistory);
+        vm.CheckUpdateOnStartup = true;
+        Assert.True(settings.CheckUpdateOnStartup);
 
         // ItemsSource 重建瞬间 ComboBox 可能回写 -1（无选中），应被忽略
         vm.ThemeIndex = -1;
@@ -169,5 +179,91 @@ public class SettingsTests
         Assert.Equal("Follow system", vm.ThemeOptions[0].Label);
         Assert.Equal("GPU (CoreML)", vm.DeviceOptions[2].Label);
         Assert.Equal(2, vm.ThemeIndex);
+    }
+
+    // ---- 检查更新（「关于」页命令，假 handler 不打真实网络）----
+
+    private static SettingsViewModel MakeUpdateVm(string releaseJson, string currentVersion = "v1.0.0") =>
+        new(new AppSettings())
+        {
+            UpdateCheckerFactory = () => new UpdateChecker(
+                new FakeHandler(_ => UpdateCheckerTests.JsonResponse(releaseJson)), currentVersion),
+        };
+
+    [AvaloniaFact]
+    public async Task CheckForUpdate_发现新版本_状态行与跳转链接()
+    {
+        // 断言中文字符串，先固定语言（进程级单例，其他测试可能留在英文）
+        Translations.Instance.SetLanguage(AppLanguage.SimplifiedChinese);
+        var vm = MakeUpdateVm(UpdateCheckerTests.LatestReleaseJson);
+
+        await vm.CheckForUpdateCommand.ExecuteAsync(null);
+
+        Assert.Equal("发现新版本 v1.2.3", vm.UpdateCheckStatus);
+        Assert.Equal("https://github.com/cholf5/inpaint/releases/tag/v1.2.3", vm.ReleaseUrl);
+        // 检查结束恢复按钮可用
+        Assert.True(vm.CheckForUpdateCommand.CanExecute(null));
+    }
+
+    [AvaloniaFact]
+    public async Task CheckForUpdate_已是最新_隐藏跳转链接()
+    {
+        Translations.Instance.SetLanguage(AppLanguage.SimplifiedChinese);
+        var vm = MakeUpdateVm("""{"tag_name":"v1.0.0"}""");
+
+        await vm.CheckForUpdateCommand.ExecuteAsync(null);
+
+        Assert.Equal("已是最新版本（v1.0.0）", vm.UpdateCheckStatus);
+        Assert.Null(vm.ReleaseUrl);
+    }
+
+    [AvaloniaFact]
+    public async Task CheckForUpdate_失败_状态行显示原因不抛异常()
+    {
+        Translations.Instance.SetLanguage(AppLanguage.SimplifiedChinese);
+        var vm = new SettingsViewModel(new AppSettings())
+        {
+            UpdateCheckerFactory = () => new UpdateChecker(
+                new FakeHandler(_ => throw new HttpRequestException("offline")), "v1.0.0"),
+        };
+
+        await vm.CheckForUpdateCommand.ExecuteAsync(null);
+
+        Assert.Equal("检查更新失败：offline", vm.UpdateCheckStatus);
+        Assert.Null(vm.ReleaseUrl);
+    }
+
+    [AvaloniaFact]
+    public async Task About页检查更新_真实XAML绑定_跳转按钮随结果显隐()
+    {
+        // TabControl 只实例化选中页签：先切「关于」再取控件（范例同 LanguageLiveSwitchTests）
+        Translations.Instance.SetLanguage(AppLanguage.SimplifiedChinese);
+        var window = new SettingsWindow { DataContext = MakeUpdateVm(UpdateCheckerTests.LatestReleaseJson) };
+        window.Show();
+        try
+        {
+            var tabs = window.GetVisualDescendants().OfType<TabItem>().ToList();
+            var aboutTab = Assert.Single(tabs, t => (t.Header as string) == Translations.Instance.SectionAbout);
+            aboutTab.IsSelected = true;
+            Dispatcher.UIThread.RunJobs();
+
+            var jumpButton = Assert.Single(window.GetVisualDescendants().OfType<Button>(),
+                b => b.Content as string == Translations.Instance.OpenReleasePage);
+            Assert.False(jumpButton.IsVisible); // 初始无结果，跳转按钮隐藏
+            var checkButton = Assert.Single(window.GetVisualDescendants().OfType<Button>(),
+                b => b.Content as string == Translations.Instance.CheckUpdateButton);
+
+            checkButton.Command!.Execute(null);
+            Dispatcher.UIThread.RunJobs();
+
+            var vm = (SettingsViewModel)window.DataContext!;
+            Assert.Equal("发现新版本 v1.2.3", vm.UpdateCheckStatus);
+            Assert.True(jumpButton.IsVisible); // 发现新版本后出现跳转按钮
+            Assert.Equal(vm.ReleaseUrl, jumpButton.Tag);
+        }
+        finally
+        {
+            window.Close();
+        }
     }
 }
