@@ -134,6 +134,30 @@ public class MainWindowTests
     }
 
     [AvaloniaFact]
+    public async Task CtrlV按键_触发粘贴命令_空剪贴板给状态提示()
+    {
+        var window = new MainWindow();
+        window.Show();
+        try
+        {
+            window.Focus();
+            var vm = Assert.IsType<MainWindowViewModel>(window.DataContext);
+            // headless 剪贴板替身无数据：按键应走完整粘贴链路并以「剪贴板中没有图片」落状态
+            // （⌘ 在 macOS 上是 Meta，处理逻辑与 Ctrl 同路，这里顺带覆盖 Meta 修饰键）
+            window.KeyPress(Key.V, RawInputModifiers.Meta, PhysicalKey.V, null);
+            await vm.PasteCommand.ExecutionTask!;
+
+            Assert.Equal(Translations.Instance.ClipboardNoImage, vm.StatusText);
+            Assert.False(vm.HasImage);
+        }
+        finally
+        {
+            await window.Clipboard!.ClearAsync(); // headless 剪贴板跨测试共享，清场防泄漏
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
     public void 画布涂抹后_Enter修复命令变为可用()
     {
         var window = new MainWindow();

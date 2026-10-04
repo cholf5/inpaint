@@ -54,6 +54,7 @@ public partial class MainWindowViewModel : ObservableObject
     internal const double BrushWheelStep = 4;
 
     private static readonly string[] ImagePatterns = ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp"];
+    private static readonly HashSet<string> ImageExtensions = [".png", ".jpg", ".jpeg", ".webp", ".bmp"];
 
     private readonly IStorageProvider? _storage;
     private readonly IClipboard? _clipboard;
@@ -94,6 +95,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(OpenCommand))]
+    [NotifyCanExecuteChangedFor(nameof(PasteCommand))]
     [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
     [NotifyCanExecuteChangedFor(nameof(InpaintCommand))]
     [NotifyCanExecuteChangedFor(nameof(UpscaleCommand))]
@@ -201,6 +203,55 @@ public partial class MainWindowViewModel : ObservableObject
         if (files.Count == 0) return;
         await using var stream = await files[0].OpenReadAsync();
         await LoadFromStreamAsync(stream, files[0].Path.LocalPath);
+    }
+
+    /// <summary>
+    /// 剪贴板粘贴打开（截图 → 粘贴 → 涂抹 → 导出 工作流的入口）：按
+    /// 平台位图（Avalonia 归一，Windows 覆盖 PNG/DIB/HBITMAP，macOS/X11 覆盖 public.png）→
+    /// 平台字节格式（macOS 截图的 public.tiff，Skia 解不了，经 ImageIO）→
+    /// 复制的图片文件（Finder/资源管理器「复制」）三级取图，成功即作为新图打开（开新历史树）。
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(NotBusy))]
+    private async Task PasteAsync()
+    {
+        if (_clipboard is null || IsBusy) return;
+        try
+        {
+            using var dataTransfer = await _clipboard.TryGetDataAsync();
+            if (dataTransfer is null)
+            {
+                StatusText = Translations.Instance.ClipboardNoImage;
+                return;
+            }
+            var bitmap = await dataTransfer.TryGetValueAsync(DataFormat.Bitmap);
+            if (bitmap is null && await ClipboardImageReader.TryGetImageBytesAsync(dataTransfer) is { } raw)
+            {
+                // TIFF 转码与 PNG/JPEG 解码是像素级工作，放后台（大截图数十 MB）
+                bitmap = await Task.Run(() => ClipboardImageReader.DecodeImageBytes(raw.Bytes, raw.IsTiff));
+            }
+            if (bitmap is not null)
+            {
+                if (IsBusy) return; // 等待剪贴板/解码期间其他操作可能已开始
+                AdoptBitmap(bitmap, null); // 剪贴板来源没有文件名，保存建议名走时间戳兜底
+                return;
+            }
+            if (await dataTransfer.TryGetValuesAsync(DataFormat.File) is { } files)
+            {
+                var path = files
+                    .Select(file => file.Path.LocalPath)
+                    .FirstOrDefault(p => ImageExtensions.Contains(Path.GetExtension(p).ToLowerInvariant()));
+                if (path is not null)
+                {
+                    await LoadFromPathAsync(path);
+                    return;
+                }
+            }
+            StatusText = Translations.Instance.ClipboardNoImage;
+        }
+        catch (Exception e)
+        {
+            StatusText = string.Format(Translations.Instance.PasteFailed, e.Message);
+        }
     }
 
     public async Task LoadFromPathAsync(string path)

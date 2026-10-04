@@ -44,6 +44,8 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(InitialStatus)] = "打开一张图片，涂抹掉不想要的内容",
         [nameof(CannotOpen)] = "无法打开图片：{0}",
         [nameof(LoadingImage)] = "正在加载图片…",
+        [nameof(ClipboardNoImage)] = "剪贴板中没有图片",
+        [nameof(PasteFailed)] = "粘贴失败：{0}",
         [nameof(OriginalNode)] = "原图",
         [nameof(LoadedStatus)] = "已加载 {0}×{1}，涂抹后点「{2}」",
         [nameof(LoadedStatusAuto)] = "已加载 {0}×{1}，涂抹后松手即自动修复",
@@ -116,6 +118,7 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(MaxHistoryHint)] = "超出上限时优先丢弃最旧的不在当前路径上的节点，原图永不丢弃。",
         [nameof(SectionShortcuts)] = "快捷键",
         [nameof(ShortcutOpen)] = "打开图片",
+        [nameof(ShortcutPaste)] = "从剪贴板粘贴图片",
         [nameof(ShortcutExport)] = "导出当前图片",
         [nameof(ShortcutUndo)] = "撤销到上一历史节点",
         [nameof(ShortcutBrushDecrease)] = "缩小画笔",
@@ -176,6 +179,8 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(InitialStatus)] = "Open an image, then paint over the content you want removed",
         [nameof(CannotOpen)] = "Could not open image: {0}",
         [nameof(LoadingImage)] = "Loading image…",
+        [nameof(ClipboardNoImage)] = "No image in the clipboard",
+        [nameof(PasteFailed)] = "Paste failed: {0}",
         [nameof(OriginalNode)] = "Original",
         [nameof(LoadedStatus)] = "Loaded {0}×{1}; paint over unwanted areas, then click “{2}”",
         [nameof(LoadedStatusAuto)] = "Loaded {0}×{1}; paint over unwanted areas — release to inpaint",
@@ -252,6 +257,7 @@ public sealed class Translations : INotifyPropertyChanged
             "the original image is never dropped.",
         [nameof(SectionShortcuts)] = "Shortcuts",
         [nameof(ShortcutOpen)] = "Open an image",
+        [nameof(ShortcutPaste)] = "Paste an image from the clipboard",
         [nameof(ShortcutExport)] = "Export the current image",
         [nameof(ShortcutUndo)] = "Undo to the previous history node",
         [nameof(ShortcutBrushDecrease)] = "Shrink brush",
@@ -339,6 +345,7 @@ public sealed class Translations : INotifyPropertyChanged
 
     public string AppTitle => Get();
     public string Open => Get();
+    public string Paste => Get();
     public string Save => Get();
     public string Undo => Get();
     public string ResetToOriginal => Get();
@@ -368,6 +375,8 @@ public sealed class Translations : INotifyPropertyChanged
     public string InitialStatus => Get();
     public string CannotOpen => Get();
     public string LoadingImage => Get();
+    public string ClipboardNoImage => Get();
+    public string PasteFailed => Get();
     public string OriginalNode => Get();
     public string LoadedStatus => Get();
     public string LoadedStatusAuto => Get();
@@ -449,6 +458,7 @@ public sealed class Translations : INotifyPropertyChanged
     public string MaxHistoryHint => Get();
     public string SectionShortcuts => Get();
     public string ShortcutOpen => Get();
+    public string ShortcutPaste => Get();
     public string ShortcutExport => Get();
     public string ShortcutUndo => Get();
     public string ShortcutBrushDecrease => Get();

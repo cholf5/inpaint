@@ -129,7 +129,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        // macOS 上 ⌘ 对应 Meta：Ctrl/⌘ + 加减号步进缩放，0 适应窗口，1 实际大小
+        // macOS 上 ⌘ 对应 Meta：Ctrl/⌘ + 加减号步进缩放，0 适应窗口，1 实际大小，V 粘贴打开剪贴板图片
         bool ctrl = e.KeyModifiers.HasFlag(KeyModifiers.Control)
             || e.KeyModifiers.HasFlag(KeyModifiers.Meta);
         if (!ctrl) return;
@@ -149,6 +149,12 @@ public partial class MainWindow : Window
                 break;
             case Key.D1:
                 Editor.SetActualSize();
+                e.Handled = true;
+                break;
+            case Key.V:
+                // 手动触发须先过 CanExecute（命令绑定才检查，AsyncRelayCommand.Execute 不检查）
+                if (DataContext is MainWindowViewModel viewModel && viewModel.PasteCommand.CanExecute(null))
+                    viewModel.PasteCommand.Execute(null);
                 e.Handled = true;
                 break;
         }

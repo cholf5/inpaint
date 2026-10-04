@@ -20,11 +20,14 @@
     <!-- 三段式布局：顶栏只留文件入口与全局项，动作按钮集中到底部卡片工具栏（参考 web 版），
          中部画布 + 右侧历史 Graph 保持原样 -->
     <DockPanel Margin="10">
-        <!-- 顶栏：打开（文件入口）｜历史开关 + 设置齿轮（低频项收进图标） -->
+        <!-- 顶栏：打开 + 粘贴（文件入口）｜历史开关 + 设置齿轮（低频项收进图标） -->
         <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,8">
-            <Button Grid.Column="0"
-                    Command="{Binding OpenCommand}"
-                    Content="{Binding Open, Source={x:Static loc:Translations.Instance}}"/>
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                <Button Command="{Binding OpenCommand}"
+                        Content="{Binding Open, Source={x:Static loc:Translations.Instance}}"/>
+                <Button Command="{Binding PasteCommand}"
+                        Content="{Binding Paste, Source={x:Static loc:Translations.Instance}}"/>
+            </StackPanel>
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
                 <ToggleButton IsChecked="{Binding IsHistoryVisible}"
                               Content="{Binding History, Source={x:Static loc:Translations.Instance}}"/>

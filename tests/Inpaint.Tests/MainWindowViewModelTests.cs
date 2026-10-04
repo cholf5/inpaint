@@ -1,6 +1,9 @@
 using System.Runtime.InteropServices;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
@@ -727,5 +730,168 @@ public class MainWindowViewModelTests
         Assert.Equal(60, initial.Quality);
         Assert.Equal(ExportFormat.Jpeg, settings.LastExportFormat);
         Assert.Equal(60, settings.LastExportQuality);
+    }
+
+    [AvaloniaFact]
+    public async Task PasteAsync_剪贴板位图作为新图打开()
+    {
+        var harness = await ClipboardHarness.WithBitmap(MakeBitmap(3, 2));
+        try
+        {
+            var vm = new MainWindowViewModel(null, harness.Clipboard);
+            Assert.True(vm.PasteCommand.CanExecute(null));
+            vm.PasteCommand.Execute(null);
+            await vm.PasteCommand.ExecutionTask!;
+
+            Assert.True(vm.HasImage);
+            Assert.Equal(new PixelSize(3, 2), vm.CurrentImage!.PixelSize);
+            var root = Assert.Single(vm.HistoryNodes);
+            Assert.Same(harness.Bitmap, root.Image); // 采纳为历史树根，无来源文件名
+            Assert.StartsWith("已加载 3×2", vm.StatusText);
+        }
+        finally
+        {
+            await harness.DisposeAsync();
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task PasteAsync_空剪贴板写状态提示不建图()
+    {
+        var harness = ClipboardHarness.CreateEmpty();
+        try
+        {
+            var vm = new MainWindowViewModel(null, harness.Clipboard);
+
+            vm.PasteCommand.Execute(null);
+            await vm.PasteCommand.ExecutionTask!;
+
+            Assert.Equal("剪贴板中没有图片", vm.StatusText);
+            Assert.False(vm.HasImage);
+            Assert.Empty(vm.HistoryNodes);
+        }
+        finally
+        {
+            await harness.DisposeAsync();
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task PasteAsync_字节格式截图走解码兜底()
+    {
+        if (!OperatingSystem.IsMacOS()) return; // TIFF 解码依赖 ImageIO，CI(linux) 上跳过
+
+        // Avalonia 只把 public.png 归一为 Bitmap；macOS 截图的 public.tiff 以平台字节格式出现
+        byte[] rgb = [255, 0, 0, 0, 255, 0, 255, 255, 255, 0, 0, 0];
+        var harness = await ClipboardHarness.WithBytes(
+            DataFormat.CreateBytesPlatformFormat("public.tiff"), MakeTiff(2, 2, rgb));
+        try
+        {
+            var vm = new MainWindowViewModel(null, harness.Clipboard);
+
+            vm.PasteCommand.Execute(null);
+            await vm.PasteCommand.ExecutionTask!;
+
+            Assert.True(vm.HasImage);
+            Assert.Equal(new PixelSize(2, 2), vm.CurrentImage!.PixelSize);
+        }
+        finally
+        {
+            await harness.DisposeAsync();
+        }
+    }
+
+    [AvaloniaFact]
+    public void PasteCommand_繁忙时不可用()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        vm.IsBusy = true;
+
+        Assert.False(vm.PasteCommand.CanExecute(null));
+    }
+
+    /// <summary>
+    /// 真实 headless 剪贴板 + 预置数据。IClipboard 带防用户实现哨兵造不出替身，
+    /// 数据经 SetDataAsync 预置；headless 剪贴板是跨测试共享实例，用完 Clear 防泄漏。
+    /// </summary>
+    private sealed class ClipboardHarness(Window window, IClipboard clipboard) : IAsyncDisposable
+    {
+        public IClipboard Clipboard => clipboard;
+        public Bitmap? Bitmap { get; private init; }
+
+        public static ClipboardHarness CreateEmpty()
+        {
+            var window = MakeWindow();
+            return new ClipboardHarness(window, window.Clipboard!);
+        }
+
+        public static async Task<ClipboardHarness> WithBitmap(Bitmap bitmap)
+        {
+            var window = MakeWindow();
+            var transfer = new FakeAsyncDataTransfer(
+                new FakeAsyncDataTransferItem((DataFormat.Bitmap, bitmap)));
+            await window.Clipboard!.SetDataAsync(transfer);
+            return new ClipboardHarness(window, window.Clipboard!) { Bitmap = bitmap };
+        }
+
+        public static async Task<ClipboardHarness> WithBytes(DataFormat<byte[]> format, byte[] bytes)
+        {
+            var window = MakeWindow();
+            var transfer = new FakeAsyncDataTransfer(
+                new FakeAsyncDataTransferItem((format, bytes)));
+            await window.Clipboard!.SetDataAsync(transfer);
+            return new ClipboardHarness(window, window.Clipboard!);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await Clipboard.ClearAsync();
+            window.Close();
+        }
+
+        private static Window MakeWindow()
+        {
+            var window = new Window();
+            window.Show(); // 确保 TopLevel 平台实现与剪贴板可用
+            return window;
+        }
+    }
+
+    /// <summary>合成最小未压缩 baseline TIFF（与 ClipboardImageReaderTests 中的实现一致）。</summary>
+    private static byte[] MakeTiff(int width, int height, byte[] rgbPixels)
+    {
+        const int ifdEntryCount = 10;
+        int bpsOffset = 8 + 2 + ifdEntryCount * 12 + 4;
+        int pixelOffset = bpsOffset + 6;
+        using var ms = new MemoryStream();
+        using var w = new BinaryWriter(ms);
+        w.Write((byte)'I');
+        w.Write((byte)'I');
+        w.Write((short)42);
+        w.Write(8); // IFD 偏移
+        w.Write((short)ifdEntryCount);
+        void Entry(ushort tag, ushort type, uint count, uint value)
+        {
+            w.Write(tag);
+            w.Write(type);
+            w.Write(count);
+            w.Write(value);
+        }
+        Entry(256, 3, 1, (uint)width);
+        Entry(257, 3, 1, (uint)height);
+        Entry(258, 3, 3, (uint)bpsOffset);
+        Entry(259, 3, 1, 1);
+        Entry(262, 3, 1, 2);
+        Entry(273, 4, 1, (uint)pixelOffset);
+        Entry(277, 3, 1, 3);
+        Entry(278, 4, 1, (uint)height);
+        Entry(279, 4, 1, (uint)rgbPixels.Length);
+        Entry(284, 3, 1, 1);
+        w.Write(0u);
+        w.Write((short)8);
+        w.Write((short)8);
+        w.Write((short)8);
+        w.Write(rgbPixels);
+        return ms.ToArray();
     }
 }
