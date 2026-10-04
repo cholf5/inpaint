@@ -8,7 +8,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- 应用版本：检查更新的比较基准（GitHub Release tag 带 v 前缀，比较时去掉），
          「关于」页展示同源。发版时改这里。 -->
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <!-- XAML 绑定默认走编译期检查，绑定路径拼错直接构建失败 -->
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <!-- 应用图标：Windows exe 内嵌图标（资源管理器/任务栏） -->
