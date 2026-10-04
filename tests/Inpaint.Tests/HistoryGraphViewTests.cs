@@ -100,7 +100,7 @@ public class HistoryGraphViewTests
 
         // 调试快照（人工查看图形态）
         using (var fs = File.Create(Path.Combine(Path.GetTempPath(), "inpaint-history-graph.png")))
-            frame.Save(fs);
+            frame.Save(fs, new PngBitmapEncoderOptions());
 
         window.Close();
     }
@@ -164,7 +164,7 @@ public class HistoryGraphViewTests
 
         // 调试快照（人工查看整个历史面板）
         using (var fs = File.Create(Path.Combine(Path.GetTempPath(), "inpaint-history-panel.png")))
-            frame.Save(fs);
+            frame.Save(fs, new PngBitmapEncoderOptions());
 
         window.Close();
     }

@@ -505,7 +505,7 @@ public class MainWindowViewModelTests
         var vm = new MainWindowViewModel(null, null);
         var source = MakeBitmap(2, 2);
         using var encoded = new MemoryStream();
-        source.Save(encoded);
+        source.Save(encoded, new PngBitmapEncoderOptions());
         encoded.Position = 0;
 
         await vm.LoadFromStreamAsync(encoded, "photo.jpg");
@@ -616,7 +616,7 @@ public class MainWindowViewModelTests
         vm.IsBusy = true;
         var source = MakeBitmap(2, 2);
         using var encoded = new MemoryStream();
-        source.Save(encoded);
+        source.Save(encoded, new PngBitmapEncoderOptions());
         encoded.Position = 0;
 
         await vm.LoadFromStreamAsync(encoded, "photo.jpg");
