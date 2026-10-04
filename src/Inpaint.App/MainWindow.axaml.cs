@@ -28,6 +28,16 @@ public partial class MainWindow : Window
         var topLevel = TopLevel.GetTopLevel(this);
         var viewModel = new MainWindowViewModel(topLevel?.StorageProvider, topLevel?.Clipboard, settings);
         DataContext = viewModel;
+
+        // macOS 上 ⌘ 是 Meta，XAML 里的 Ctrl+O/S/Z 只认物理 Ctrl（KeyGesture 修饰键须精确匹配）：
+        // 补 ⌘ 系绑定，与缩放/粘贴 OnKeyDown 的 Ctrl||⌘ 双认保持一致；键帽显示见 SettingsViewModel
+        if (OperatingSystem.IsMacOS())
+        {
+            KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.O, KeyModifiers.Meta), Command = viewModel.OpenCommand });
+            KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.S, KeyModifiers.Meta), Command = viewModel.SaveCommand });
+            KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.Z, KeyModifiers.Meta), Command = viewModel.UndoCommand });
+        }
+
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DropEvent, OnDrop);
 
@@ -127,6 +137,24 @@ public partial class MainWindow : Window
         {
             Editor.SetPanMode(true);
             return;
+        }
+
+        // 画笔大小备用键 - / =：非美式键盘布局上 [ ] 未必有直接键位（法语 AZERTY 的 + 还须 Shift），Shift 一并接受
+        if (e.KeyModifiers is KeyModifiers.None or KeyModifiers.Shift
+            && DataContext is MainWindowViewModel brushVm)
+        {
+            var brushCommand = e.Key switch
+            {
+                Key.OemMinus => brushVm.DecreaseBrushSizeCommand,
+                Key.OemPlus => brushVm.IncreaseBrushSizeCommand,
+                _ => null,
+            };
+            if (brushCommand is { } command && command.CanExecute(null))
+            {
+                command.Execute(null);
+                e.Handled = true;
+                return;
+            }
         }
 
         // macOS 上 ⌘ 对应 Meta：Ctrl/⌘ + 加减号步进缩放，0 适应窗口，1 实际大小，V 粘贴打开剪贴板图片

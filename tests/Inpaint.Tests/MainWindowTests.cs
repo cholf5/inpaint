@@ -48,6 +48,54 @@ public class MainWindowTests
     }
 
     [AvaloniaFact]
+    public void 画笔备用键_减号等号调整大小并接受Shift变体()
+    {
+        var window = new MainWindow();
+        window.Show();
+        try
+        {
+            window.Focus();
+            var vm = Assert.IsType<MainWindowViewModel>(window.DataContext);
+            Assert.Equal(40, vm.BrushSize);
+
+            // 非美式键盘布局上 [ ] 未必有直接键位，-/= 走 OnKeyDown 备用路径（步进与 [ ] 相同）
+            window.KeyPress(Key.OemMinus, RawInputModifiers.None, PhysicalKey.Minus, null);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(39, vm.BrushSize);
+
+            // AZERTY 等布局上 + 须 Shift：Shift+= 同样放大画笔
+            window.KeyPress(Key.OemPlus, RawInputModifiers.Shift, PhysicalKey.Equal, null);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(40, vm.BrushSize);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public void 打开导出撤销_主修饰键绑定随平台可用()
+    {
+        var window = new MainWindow();
+        window.Show();
+        try
+        {
+            var gestures = window.KeyBindings.Select(b => b.Gesture).ToList();
+            // XAML 里是 Ctrl 系；macOS 上 ⌘ 是 Meta、KeyGesture 精确匹配物理 Ctrl，构造时补 ⌘ 系绑定，
+            // 主修饰键（macOS ⌘、其余 Ctrl）须对 O/S/Z 三个键都可用，否则 ⌘O 等按不出来
+            var primary = OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control;
+            Assert.Contains(gestures, g => g.Key == Key.O && g.KeyModifiers == primary);
+            Assert.Contains(gestures, g => g.Key == Key.S && g.KeyModifiers == primary);
+            Assert.Contains(gestures, g => g.Key == Key.Z && g.KeyModifiers == primary);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
     public void 画布滚轮_按滚轮步进调整画笔大小()
     {
         var window = new MainWindow();

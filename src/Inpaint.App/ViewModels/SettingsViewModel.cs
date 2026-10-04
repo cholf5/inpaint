@@ -31,6 +31,17 @@ public sealed partial class SettingsViewModel : ObservableObject
     /// <summary>程序集版本（「关于」页展示），与检查更新的比较基准同源，见 UpdateChecker.CurrentVersion。</summary>
     public static string AppVersion { get; } = UpdateChecker.CurrentVersion;
 
+    // 快捷键页键帽：键名语言无关，但主修饰键随平台而异（macOS ⌘=Meta，其余平台 Ctrl），
+    // 须与 MainWindow 实际绑定一致；仿 AppVersion 以 x:Static 引用，不走 Translations
+    /// <summary>主修饰键显示符号。</summary>
+    public static string ModifierGlyph => OperatingSystem.IsMacOS() ? "⌘" : "Ctrl";
+    public static string ZoomWheelKeycap => $"{ModifierGlyph}Wheel";
+    public static string ZoomKeysKeycap => $"{ModifierGlyph}0/1";
+    public static string OpenKeycap => $"{ModifierGlyph}O";
+    public static string PasteKeycap => $"{ModifierGlyph}V";
+    public static string ExportKeycap => $"{ModifierGlyph}S";
+    public static string UndoKeycap => $"{ModifierGlyph}Z";
+
     // 选项实例一次创建、跨语言复用，顺序与枚举下标一一对应；标签在构造时按当前语言填充
     private readonly OptionItem[] _themeOptions = [new(""), new(""), new("")];
     private readonly OptionItem[] _languageOptions = [new(""), new(""), new("")];
