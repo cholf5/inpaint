@@ -156,8 +156,11 @@
                     <TextBlock Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Text="MIT"/>
                     <TextBlock Grid.Row="2" VerticalAlignment="Center"
                                Text="{Binding RepoLabel, Source={x:Static loc:Translations.Instance}}"/>
-                    <SelectableTextBlock Grid.Row="2" Grid.Column="1" VerticalAlignment="Center"
-                                         Text="https://github.com/cholf5/inpaint"/>
+                    <!-- HyperlinkButton 点击时自动经 ILauncher 走系统浏览器，无需 code-behind -->
+                    <HyperlinkButton Grid.Row="2" Grid.Column="1" VerticalAlignment="Center"
+                                     Padding="0"
+                                     Content="https://github.com/cholf5/inpaint"
+                                     NavigateUri="https://github.com/cholf5/inpaint"/>
                 </Grid>
                 <!-- 检查更新：结果写在状态行（瞬态，不随语言刷新）；发现新版本时才出现跳转按钮 -->
                 <Separator/>
