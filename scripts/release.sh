@@ -9,7 +9,8 @@
 #
 # 失败恢复：CI 失败时 tag 已推送，修复代码后
 #   git push origin :refs/tags/vX.Y.Z && git tag -d vX.Y.Z
-# 再重跑本脚本。版本必须与 csproj <Version> 一致，workflow 会在 tag 时强制校验。
+# 再重跑本脚本（csproj 已是目标版本时自动跳过 bump 提交）。
+# 版本必须与 csproj <Version> 一致，workflow 会在 tag 时强制校验。
 set -eu
 cd "$(dirname "$0")/.."
 
@@ -41,27 +42,33 @@ git diff --quiet && git diff --cached --quiet || { echo "工作树有未提交�
 UNTRACKED=$(git ls-files --others --exclude-standard | wc -l | tr -d ' ')
 [ "$UNTRACKED" -eq 0 ] || echo "注意：有 $UNTRACKED 个未跟踪文件，不会进入本次发布" >&2
 
-CUR=$(sed -n 's/.*<Version>\(.*\)<\/Version>.*/\1/p' "$PROJECT" | head -1 | tr -d '[:space:]')
-[ -n "$CUR" ] || { echo "无法从 $PROJECT 读取 <Version>" >&2; exit 1; }
-[ "$CUR" != "$VERSION" ] || { echo "$PROJECT 已是 $VERSION，无需发版（要重发先删 tag）" >&2; exit 1; }
-
+# 「已发过版」的真正信号是 tag 存在；csproj 版本一致只说明无需 bump
+# （首版预写版本号、失败恢复重发时都会走到这条路径）
 git rev-parse -q --verify "refs/tags/$TAG" >/dev/null && { echo "本地已存在 $TAG" >&2; exit 1; }
 [ -z "$(git ls-remote --tags origin "refs/tags/$TAG")" ] || { echo "远端已存在 $TAG" >&2; exit 1; }
+
+CUR=$(sed -n 's/.*<Version>\(.*\)<\/Version>.*/\1/p' "$PROJECT" | head -1 | tr -d '[:space:]')
+[ -n "$CUR" ] || { echo "无法从 $PROJECT 读取 <Version>" >&2; exit 1; }
 
 if [ "$SKIP_TEST" != true ]; then
   echo "本地跑测试（--skip-test 可跳过）..."
   dotnet test Inpaint.slnx --nologo -v q || { echo "本地测试失败，中止" >&2; exit 1; }
 fi
 
-# 替换 <Version>，经临时文件回写以兼容 BSD/GNU sed
-TMP=$(mktemp)
-sed "s#\(<Version>\)[^<]*\(</Version>\)#\1$VERSION\2#" "$PROJECT" > "$TMP"
-mv "$TMP" "$PROJECT"
-NEW=$(sed -n 's/.*<Version>\(.*\)<\/Version>.*/\1/p' "$PROJECT" | head -1 | tr -d '[:space:]')
-[ "$NEW" = "$VERSION" ] || { echo "版本替换校验失败：期望 $VERSION，实得 $NEW" >&2; exit 1; }
+if [ "$CUR" != "$VERSION" ]; then
+  # 替换 <Version>，经临时文件回写以兼容 BSD/GNU sed
+  TMP=$(mktemp)
+  sed "s#\(<Version>\)[^<]*\(</Version>\)#\1$VERSION\2#" "$PROJECT" > "$TMP"
+  mv "$TMP" "$PROJECT"
+  NEW=$(sed -n 's/.*<Version>\(.*\)<\/Version>.*/\1/p' "$PROJECT" | head -1 | tr -d '[:space:]')
+  [ "$NEW" = "$VERSION" ] || { echo "版本替换校验失败：期望 $VERSION，实得 $NEW" >&2; exit 1; }
 
-git add "$PROJECT"
-git commit -m "Bump version to $VERSION"
+  git add "$PROJECT"
+  git commit -m "Bump version to $VERSION"
+else
+  echo "csproj 已是 $VERSION，跳过 bump 提交，直接打 tag"
+fi
+
 git tag -a "$TAG" -m "Inpaint $TAG"
 git push origin main "$TAG"
 
