@@ -16,36 +16,36 @@
 
 ## 🎬 演示
 
-<div align="center">
-
-<figure>
-  <img src="docs/inpaint.gif" alt="图片修复演示">
-  <figcaption><strong>图片修复</strong> —— 用画笔涂抹想要移除的内容，MI-GAN 根据周围像素自动填补</figcaption>
-</figure>
-
-</div>
-
-<br>
-
-<div align="center">
-
-<figure>
-  <img src="docs/upscale.gif" alt="高清化演示">
-  <figcaption><strong>高清化 ×4</strong> —— Real-ESRGAN 分块放大，带接缝抑制</figcaption>
-</figure>
-
-</div>
+<table align="center">
+  <tr>
+    <td><img src="docs/inpaint.gif" alt="图片修复演示" width="800"></td>
+  </tr>
+  <tr>
+    <td align="center"><small><strong>图片修复</strong> —— 用画笔涂抹想要移除的内容，MI-GAN 根据周围像素自动填补</small></td>
+  </tr>
+</table>
 
 <br>
 
-<div align="center">
+<table align="center">
+  <tr>
+    <td><img src="docs/upscale.gif" alt="图片高清化演示" width="800"></td>
+  </tr>
+  <tr>
+    <td align="center"><small><strong>图片高清化</strong> —— Real-ESRGAN 分块放大，带接缝抑制</small></td>
+  </tr>
+</table>
 
-<figure>
-  <img src="docs/settings.gif" alt="设置演示">
-  <figcaption><strong>设置</strong> —— 主题、语言、加速设备等，任何修改即时生效</figcaption>
-</figure>
+<br>
 
-</div>
+<table align="center">
+  <tr>
+    <td><img src="docs/settings.gif" alt="设置演示" width="800"></td>
+  </tr>
+  <tr>
+    <td align="center"><small><strong>设置</strong> —— 主题、语言、加速设备等，任何修改即时生效</small></td>
+  </tr>
+</table>
 
 ## ✨ 功能
 
