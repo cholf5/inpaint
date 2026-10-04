@@ -65,8 +65,6 @@ public partial class MainWindowViewModel : ObservableObject
     private string? _sourceDirectory;
     /// <summary>上次保存所选目录：后续保存的起始位置与重名探测目录。</summary>
     private string? _lastSaveDirectory;
-    /// <summary>上次导出设置（格式 + 质量）：再次打开导出对话框时的初始值。</summary>
-    private ExportOptions? _lastExportOptions;
     private InpaintEngine? _inpaintEngine;
     private UpscaleEngine? _upscaleEngine;
     private bool _resetUpscaleWhenIdle;
@@ -659,20 +657,22 @@ public partial class MainWindowViewModel : ObservableObject
 
     /// <summary>
     /// 导出对话框回调（MainWindow 接线为模态 ExportWindow）：入参待导出节点与上次导出设置，
-    /// 返回 null = 用户取消。未接线（无 UI 环境）时跳过对话框按默认 PNG 直接走保存流程。internal 供单测注入替身。
+    /// 返回 null = 用户取消（含未接线的安全兜底，同 ConfirmUpscaleAsync 先例）。internal 供单测注入替身。
     /// </summary>
     internal Func<ImageHistoryNode, ExportOptions?, Task<ExportChoice?>>? ExportDialogProvider;
 
     private async Task SaveToPickerAsync(ImageHistoryNode node)
     {
         if (_storage is null) return;
-        // 对话框先行（预估与编码都在其中完成），取消则不弹文件选择器
+        // 对话框先行（预估与编码都在其中完成），取消则不弹文件选择器；初始值 = 上次导出参数（持久化在共享设置里）
         var choice = ExportDialogProvider is { } provider
-            ? await provider(node, _lastExportOptions)
+            ? await provider(node, new ExportOptions(_settings.LastExportFormat, _settings.LastExportQuality))
             : null;
         if (choice is null) return;
         var format = choice.Format;
-        _lastExportOptions = new ExportOptions(format, choice.Quality);
+        // 记住本次导出参数：写入共享设置即落盘（App.WireSettings 订阅变更持久化），重启后仍是初始值
+        _settings.LastExportFormat = format;
+        _settings.LastExportQuality = choice.Quality;
         var extension = ExtensionFor(format);
         // 起始位置与重名探测用同一目录：上次保存目录优先，退回源文件目录
         var dir = _lastSaveDirectory ?? _sourceDirectory;
