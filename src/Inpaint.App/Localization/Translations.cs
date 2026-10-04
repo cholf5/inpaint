@@ -57,6 +57,14 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(UpscaleDone)] = "放大完成（{0}×{1}）",
         [nameof(UpscaleFailed)] = "放大失败：{0}",
         [nameof(UpscaleTooLarge)] = "图片过大（{0}×{1}），超出超分模型处理上限，无法放大",
+        // 文案中的「1 亿像素」须与 MainWindowViewModel.UpscaleConfirmPixels 默认值（100_000_000）保持一致
+        [nameof(UpscaleConfirmTitle)] = "确认高清放大",
+        [nameof(UpscaleConfirmLarge)] =
+            "即将把图片从 {0}×{1} 放大到 {2}×{3}。输出超过 1 亿像素，结果位图与推理的峰值内存可能达数 GB，" +
+            "低内存机器可能出现系统级卡顿。确定继续吗？",
+        [nameof(UpscaleConfirmContinue)] = "继续放大",
+        [nameof(UpscaleConfirmCancel)] = "取消",
+        [nameof(UpscaleCancelled)] = "已取消放大",
         [nameof(SwitchedToNode)] = "已切换到「{0}」，继续修复/放大将开新车道分叉",
         [nameof(Undone)] = "已撤销",
         [nameof(BackToOriginal)] = "已回到原图",
@@ -166,6 +174,14 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(UpscaleDone)] = "Upscale done ({0}×{1})",
         [nameof(UpscaleFailed)] = "Upscale failed: {0}",
         [nameof(UpscaleTooLarge)] = "Image too large ({0}×{1}) for the upscale model; unable to upscale",
+        [nameof(UpscaleConfirmTitle)] = "Confirm Upscale",
+        [nameof(UpscaleConfirmLarge)] =
+            "The image is about to be upscaled from {0}×{1} to {2}×{3}. The output exceeds 100 megapixels — " +
+            "the result bitmap and inference may peak at several GB of memory and can make the whole system " +
+            "unresponsive on low-memory machines. Continue anyway?",
+        [nameof(UpscaleConfirmContinue)] = "Upscale Anyway",
+        [nameof(UpscaleConfirmCancel)] = "Cancel",
+        [nameof(UpscaleCancelled)] = "Upscale cancelled",
         [nameof(SwitchedToNode)] = "Switched to “{0}”; further edits will fork into a new lane",
         [nameof(Undone)] = "Undone",
         [nameof(BackToOriginal)] = "Back to the original image",
@@ -335,6 +351,11 @@ public sealed class Translations : INotifyPropertyChanged
     public string UpscaleDone => Get();
     public string UpscaleFailed => Get();
     public string UpscaleTooLarge => Get();
+    public string UpscaleConfirmTitle => Get();
+    public string UpscaleConfirmLarge => Get();
+    public string UpscaleConfirmContinue => Get();
+    public string UpscaleConfirmCancel => Get();
+    public string UpscaleCancelled => Get();
     public string SwitchedToNode => Get();
     public string Undone => Get();
     public string BackToOriginal => Get();

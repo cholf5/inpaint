@@ -1,0 +1,22 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:Inpaint.App.Localization"
+        x:Class="Inpaint.App.ConfirmWindow"
+        Title="{Binding UpscaleConfirmTitle, Source={x:Static loc:Translations.Instance}}"
+        Icon="avares://Inpaint.App/Assets/app-icon.ico"
+        Width="480" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+    <!-- 超大超分二次确认：正文由调用方经 Translations 组装后写入 MessageText；
+         默认焦点在「取消」，回车/空格不会顺手确认超大任务，Esc 等效取消 -->
+    <StackPanel Margin="20,18" Spacing="16">
+        <TextBlock x:Name="MessageText" TextWrapping="Wrap"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+            <Button x:Name="CancelButton" MinWidth="96"
+                    Content="{Binding UpscaleConfirmCancel, Source={x:Static loc:Translations.Instance}}"
+                    Click="OnCancel"/>
+            <Button x:Name="ContinueButton" MinWidth="96"
+                    Content="{Binding UpscaleConfirmContinue, Source={x:Static loc:Translations.Instance}}"
+                    Click="OnContinue"/>
+        </StackPanel>
+    </StackPanel>
+</Window>

@@ -647,4 +647,61 @@ public class MainWindowViewModelTests
         Assert.False(vm.HasImage);
         Assert.Null(vm.StatusText);
     }
+
+    // ---- 超大超分确认弹窗（ConfirmLargeUpscaleAsync 经 ConfirmUpscaleAsync 替身断言，不跑真实推理）----
+
+    [AvaloniaFact]
+    public async Task ConfirmLargeUpscaleAsync_输出低于阈值_不询问直接继续()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        vm.ConfirmUpscaleAsync = _ => throw new InvalidOperationException("低于阈值不应弹窗");
+
+        // 100×100 → 输出 400×400，远低于 1 亿像素确认阈值
+        Assert.True(await vm.ConfirmLargeUpscaleAsync(new PixelSize(100, 100)));
+    }
+
+    [AvaloniaFact]
+    public async Task ConfirmLargeUpscaleAsync_超阈值_询问文案含目标分辨率()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        string? asked = null;
+        vm.ConfirmUpscaleAsync = message =>
+        {
+            asked = message;
+            return Task.FromResult(true);
+        };
+
+        // 3200×2000 → 输出 12800×8000 ≈ 1.02 亿像素，超过默认阈值
+        Assert.True(await vm.ConfirmLargeUpscaleAsync(new PixelSize(3200, 2000)));
+        Assert.NotNull(asked);
+        Assert.Contains("12800×8000", asked);
+    }
+
+    [AvaloniaFact]
+    public async Task ConfirmLargeUpscaleAsync_拒绝或未接线均不继续()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        vm.ConfirmUpscaleAsync = _ => Task.FromResult(false);
+        Assert.False(await vm.ConfirmLargeUpscaleAsync(new PixelSize(3200, 2000)));
+
+        // 未接线（无 UI 环境）安全起见按取消处理
+        var unwired = new MainWindowViewModel(null, null);
+        unwired.UpscaleConfirmPixels = 1;
+        Assert.False(await unwired.ConfirmLargeUpscaleAsync(new PixelSize(8, 8)));
+    }
+
+    [AvaloniaFact]
+    public async Task UpscaleCommand_超阈值确认取消_不执行不繁忙()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        vm.AdoptBitmap(MakeBitmap(64, 64)); // 输出 256×256
+        vm.UpscaleConfirmPixels = 1; // 注入小阈值触发确认，避免巨型测试位图
+        vm.ConfirmUpscaleAsync = _ => Task.FromResult(false);
+
+        await vm.UpscaleCommand.ExecuteAsync(null);
+
+        Assert.Equal("已取消放大", vm.StatusText);
+        Assert.False(vm.IsBusy);
+        Assert.Single(vm.HistoryNodes); // 历史未新增节点，引擎未创建
+    }
 }

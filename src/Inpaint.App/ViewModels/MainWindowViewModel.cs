@@ -33,6 +33,13 @@ public partial class MainWindowViewModel : ObservableObject
     internal long UpscaleMaxPixels { get; set; } = 32_000_000;
 
     /// <summary>
+    /// 超分确认阈值（按 ×4 后的输出像素计）：输出超 1 亿像素（约 11300×11300，结果位图 ≥400MB，
+    /// 加推理峰值可达数 GB）时先弹窗确认再执行，防手滑连点拖垮整机内存（硬上限仍由 UpscaleMaxPixels 兜底）。
+    /// 100MP 以下不打扰——普通 AI 图与中等照片 ×4 后都在其内。internal set 供单测注入小值。
+    /// </summary>
+    internal long UpscaleConfirmPixels { get; set; } = 100_000_000;
+
+    /// <summary>
     /// 历史位图总字节预算（BGRA 体积合计）：MaxHistory 节点数之外的第二道约束，
     /// 超大分辨率图上 25 张全分辨率位图可达数 GB，会触发系统级内存压力。internal set 供单测注入小值。
     /// </summary>
@@ -357,6 +364,12 @@ public partial class MainWindowViewModel : ObservableObject
             StatusText = string.Format(Translations.Instance.UpscaleTooLarge, size.Width, size.Height);
             return;
         }
+        // 硬上限以内但输出极大时二次确认（确认期间 IsBusy 未置位也无碍：弹窗是模态的，主窗口不可点）
+        if (!await ConfirmLargeUpscaleAsync(size))
+        {
+            StatusText = Translations.Instance.UpscaleCancelled;
+            return;
+        }
         IsBusy = true;
         try
         {
@@ -388,6 +401,23 @@ public partial class MainWindowViewModel : ObservableObject
             IsBusy = false;
             ResetUpscaleEngineIfFlagged();
         }
+    }
+
+    /// <summary>超大超分确认弹窗回调（MainWindow 接线为模态确认窗）：入参提示文案，返回 true = 继续。internal 供单测注入替身。</summary>
+    internal Func<string, Task<bool>>? ConfirmUpscaleAsync;
+
+    /// <summary>
+    /// 输出像素超确认阈值时经 ConfirmUpscaleAsync 弹窗询问；未接线（无 UI 环境）安全起见按取消处理。
+    /// internal 供单测。
+    /// </summary>
+    internal async Task<bool> ConfirmLargeUpscaleAsync(PixelSize size)
+    {
+        long outWidth = (long)size.Width * 4, outHeight = (long)size.Height * 4;
+        if (outWidth * outHeight <= UpscaleConfirmPixels) return true;
+        if (ConfirmUpscaleAsync is not { } confirm) return false;
+        return await confirm(string.Format(
+            Translations.Instance.UpscaleConfirmLarge,
+            size.Width, size.Height, outWidth, outHeight));
     }
 
     // ---- 生成历史 / 遮罩 / 复制 / 保存 ----
