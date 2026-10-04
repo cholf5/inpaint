@@ -37,6 +37,10 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(DropHint)] = "把图片拖进窗口，或点击「{0}」",
         [nameof(HistoryTitleFormat)] = "生成历史（{0}）",
         [nameof(HistoryEmptyHint)] = "打开或生成图片后，这里会记录每一次修复与放大",
+        [nameof(FitWindow)] = "适应窗口",
+        [nameof(ActualSize)] = "实际大小",
+        [nameof(ZoomIn)] = "放大",
+        [nameof(ZoomOut)] = "缩小",
         [nameof(InitialStatus)] = "打开一张图片，涂抹掉不想要的内容",
         [nameof(CannotOpen)] = "无法打开图片：{0}",
         [nameof(OriginalNode)] = "原图",
@@ -92,6 +96,9 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(ShortcutBrushIncrease)] = "放大画笔",
         [nameof(ShortcutBrushWheel)] = "画布上滚动滚轮调节画笔大小",
         [nameof(ShortcutInpaint)] = "执行修复（需已涂抹）",
+        [nameof(ShortcutZoomWheel)] = "画布上 ⌘/Ctrl/Alt+滚轮：以光标为中心缩放",
+        [nameof(ShortcutZoomKeys)] = "⌘/Ctrl 加/减号步进缩放；⌘/Ctrl+0 适应窗口；⌘/Ctrl+1 实际大小",
+        [nameof(ShortcutPan)] = "按住空格拖拽（或中键拖拽）平移画布",
         [nameof(SectionModels)] = "模型",
         [nameof(ModelsDirLabel)] = "模型缓存目录",
         [nameof(OpenModelsFolder)] = "打开模型文件夹",
@@ -136,6 +143,10 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(HistoryTitleFormat)] = "History ({0})",
         [nameof(HistoryEmptyHint)] =
             "Every inpaint and upscale will be recorded here once an image is opened or generated",
+        [nameof(FitWindow)] = "Fit Window",
+        [nameof(ActualSize)] = "Actual Size",
+        [nameof(ZoomIn)] = "Zoom In",
+        [nameof(ZoomOut)] = "Zoom Out",
         [nameof(InitialStatus)] = "Open an image, then paint over the content you want removed",
         [nameof(CannotOpen)] = "Could not open image: {0}",
         [nameof(OriginalNode)] = "Original",
@@ -195,6 +206,10 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(ShortcutBrushIncrease)] = "Grow brush",
         [nameof(ShortcutBrushWheel)] = "Scroll over the canvas to resize brush",
         [nameof(ShortcutInpaint)] = "Inpaint painted areas (paint the mask first)",
+        [nameof(ShortcutZoomWheel)] = "Zoom centered on the pointer: ⌘/Ctrl/Alt + scroll over the canvas",
+        [nameof(ShortcutZoomKeys)] =
+            "⌘/Ctrl + plus/minus zooms; ⌘/Ctrl+0 fits the window; ⌘/Ctrl+1 shows actual size",
+        [nameof(ShortcutPan)] = "Hold Space and drag (or drag with the middle button) to pan the canvas",
         [nameof(SectionModels)] = "Models",
         [nameof(ModelsDirLabel)] = "Model cache folder",
         [nameof(OpenModelsFolder)] = "Open Models Folder",
@@ -289,6 +304,13 @@ public sealed class Translations : INotifyPropertyChanged
     public string HistoryTitleFormat => Get();
     public string HistoryEmptyHint => Get();
 
+    // ---- 画布缩放 ----
+
+    public string FitWindow => Get();
+    public string ActualSize => Get();
+    public string ZoomIn => Get();
+    public string ZoomOut => Get();
+
     // ---- 状态栏与历史节点标题 ----
 
     public string InitialStatus => Get();
@@ -353,6 +375,9 @@ public sealed class Translations : INotifyPropertyChanged
     public string ShortcutBrushIncrease => Get();
     public string ShortcutBrushWheel => Get();
     public string ShortcutInpaint => Get();
+    public string ShortcutZoomWheel => Get();
+    public string ShortcutZoomKeys => Get();
+    public string ShortcutPan => Get();
     public string SectionModels => Get();
     public string ModelsDirLabel => Get();
     public string OpenModelsFolder => Get();

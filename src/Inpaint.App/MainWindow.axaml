@@ -92,6 +92,26 @@
                            HorizontalAlignment="Center" VerticalAlignment="Center"
                            FontSize="18" Foreground="Gray"
                            Text="{Binding DropHint, Source={x:Static loc:Translations.Instance}}"/>
+                <!-- 缩放胶囊：快捷键没有可发现性，常驻画布右下角；百分比点击回 100% -->
+                <Border x:Name="ZoomPill" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                        Margin="0,0,12,12" CornerRadius="6" Padding="6,4" BorderThickness="1"
+                        BorderBrush="#20000000" Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                        IsVisible="{Binding HasImage}">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <Button MinWidth="28" Padding="8,2" Click="OnZoomOutClick"
+                                ToolTip.Tip="{Binding ZoomOut, Source={x:Static loc:Translations.Instance}}"
+                                Content="−"/>
+                        <Button MinWidth="52" Padding="8,2" Click="OnZoomActualClick"
+                                ToolTip.Tip="{Binding ActualSize, Source={x:Static loc:Translations.Instance}}">
+                            <TextBlock Text="{Binding ZoomLabel, ElementName=Editor}"/>
+                        </Button>
+                        <Button MinWidth="28" Padding="8,2" Click="OnZoomInClick"
+                                ToolTip.Tip="{Binding ZoomIn, Source={x:Static loc:Translations.Instance}}"
+                                Content="+"/>
+                        <Button Padding="8,2" Click="OnZoomFitClick"
+                                Content="{Binding FitWindow, Source={x:Static loc:Translations.Instance}}"/>
+                    </StackPanel>
+                </Border>
             </Panel>
 
             <!-- 生成历史：整块 git 风格竖向 Graph（车道 = 分支，行 = 时间），

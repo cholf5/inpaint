@@ -242,4 +242,199 @@ public class ImageEditorControlTests
         window.Close();
         Assert.True(true); // 能走到这里即未抛异常
     }
+
+    // ---- 视图缩放/平移 ----
+    // 适应窗口初始缩放恒为 5（窗口 320×240、图 64×48）；锚点/钳制数学的确定值都基于此推导
+
+    [Fact]
+    public void ZoomPanAt_锚点下的图像点在新倍率下不动()
+    {
+        var size = new Size(400, 300);
+        var bounds = new Size(320, 240);
+        var pan = new Point(-40, -30); // zoom 1 时锚点 (100,90) 对应图像点 (140,120)
+        var anchor = new Point(100, 90);
+        var imgPt = new Point(anchor.X - pan.X, anchor.Y - pan.Y);
+
+        var newPan = ImageEditorControl.ZoomPanAt(pan, 1.0, 2.0, anchor, size, bounds);
+
+        Assert.Equal(anchor.X, newPan.X + imgPt.X * 2, 5);
+        Assert.Equal(anchor.Y, newPan.Y + imgPt.Y * 2, 5);
+    }
+
+    [Fact]
+    public void ClampPan_图小于视口居中_大于视口贴边()
+    {
+        var centered = ImageEditorControl.ClampPan(new Point(50, 50), 1, new Size(100, 80), new Size(320, 240));
+        Assert.Equal(new Point(110, 80), centered);
+
+        var pushedInside = ImageEditorControl.ClampPan(new Point(100, 50), 1, new Size(800, 600), new Size(320, 240));
+        Assert.Equal(new Point(0, 0), pushedInside);
+
+        var clamped = ImageEditorControl.ClampPan(new Point(-600, -400), 1, new Size(800, 600), new Size(320, 240));
+        Assert.Equal(new Point(-480, -360), clamped);
+    }
+
+    [AvaloniaFact]
+    public void Ctrl滚轮_以光标为锚点缩放_画笔滚轮不受影响()
+    {
+        var host = CreateEditor();
+        double? brushDelta = null;
+        host.Editor.BrushSizeWheel += (_, d) => brushDelta = d;
+
+        // 初始适应缩放 5（500%）；窗口中心锚点 → 缩放后仍应指向图像点 (32,24)
+        host.Window.MouseWheel(new Point(WinW / 2.0, WinH / 2.0), new Vector(0, 1), RawInputModifiers.Control);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(6, host.Editor.Zoom, 5);
+        Assert.Null(brushDelta);
+
+        // 锚点下的图像点不动：原位落笔涂的仍是 (32,24)，涂抹半径随缩放换算（40/2/6 ≈ 3.33 图像像素）
+        host.Window.MouseDown(new Point(WinW / 2.0, WinH / 2.0), MouseButton.Left);
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(IsWhite(host.Mask, 32, 24));
+        Assert.True(IsWhite(host.Mask, 35, 24));
+        Assert.False(IsWhite(host.Mask, 36, 24));
+
+        host.Window.Close();
+    }
+
+    [AvaloniaFact]
+    public void 画笔不可用时_Ctrl滚轮仍可缩放()
+    {
+        var host = CreateEditor();
+        host.Editor.IsPaintEnabled = false; // 繁忙模拟：画笔不可用，但缩放仍应可用
+
+        host.Window.MouseWheel(new Point(WinW / 2.0, WinH / 2.0), new Vector(0, 1), RawInputModifiers.Control);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(6, host.Editor.Zoom, 5);
+
+        host.Window.Close();
+    }
+
+    [AvaloniaFact]
+    public void 捏合_按平台逐事件增量缩放()
+    {
+        var host = CreateEditor();
+
+        host.Editor.HandleMagnify(new Point(WinW / 2.0, WinH / 2.0), 1.2);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(6, host.Editor.Zoom, 5);
+
+        host.Editor.HandleMagnify(new Point(WinW / 2.0, WinH / 2.0), 0.8);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(4.8, host.Editor.Zoom, 5);
+
+        host.Window.Close();
+    }
+
+    [AvaloniaFact]
+    public void 空格平移模式_左键拖拽移动画布不落笔()
+    {
+        var host = CreateEditor();
+        int strokes = 0;
+        host.Editor.StrokeCommitted += (_, _) => strokes++;
+
+        host.Editor.HandleMagnify(new Point(WinW / 2.0, WinH / 2.0), 1.2); // zoom 6 → pan (-32,-24)，有平移余量
+        host.Editor.SetPanMode(true);
+        host.Window.MouseDown(new Point(WinW / 2.0, WinH / 2.0), MouseButton.Left);
+        host.Window.MouseMove(new Point(WinW / 2.0 - 60, WinH / 2.0 - 40), RawInputModifiers.None);
+        Dispatcher.UIThread.RunJobs();
+        host.Window.MouseUp(new Point(WinW / 2.0 - 60, WinH / 2.0 - 40), MouseButton.Left, RawInputModifiers.None);
+        host.Editor.SetPanMode(false);
+        Dispatcher.UIThread.RunJobs();
+
+        // 拖拽期间不落笔、不算一笔
+        Assert.False(IsWhite(host.Mask, 32, 24));
+        Assert.Equal(0, strokes);
+        // 平移钳制贴边：(-32,-24)+(-60,-40) → X 钳到 [320-384,0] 的 -64，Y 钳到 -48
+        Assert.Equal(new Point(-64, -48), host.Editor.Pan);
+
+        host.Window.Close();
+    }
+
+    [AvaloniaFact]
+    public void 中键拖拽_平移画布不落笔()
+    {
+        var host = CreateEditor();
+
+        host.Editor.HandleMagnify(new Point(WinW / 2.0, WinH / 2.0), 1.2); // zoom 6 → pan (-32,-24)
+        host.Window.MouseDown(new Point(WinW / 2.0, WinH / 2.0), MouseButton.Middle);
+        host.Window.MouseMove(new Point(WinW / 2.0 - 30, WinH / 2.0 - 20), RawInputModifiers.None);
+        Dispatcher.UIThread.RunJobs();
+        host.Window.MouseUp(new Point(WinW / 2.0 - 30, WinH / 2.0 - 20), MouseButton.Middle, RawInputModifiers.None);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(new Point(-62, -44), host.Editor.Pan);
+        Assert.False(IsWhite(host.Mask, 32, 24));
+
+        host.Window.Close();
+    }
+
+    [AvaloniaFact]
+    public void 缩放后落笔_须在图片显示区内()
+    {
+        var host = CreateEditor();
+
+        host.Editor.HandleMagnify(new Point(WinW / 2.0, WinH / 2.0), 1.2); // contentRect = (-32,-24,384,288)
+        host.Window.MouseDown(new Point(10, 10), MouseButton.Left);        // 图像点 (7, 5.67)
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(IsWhite(host.Mask, 7, 5));
+        host.Window.MouseUp(new Point(10, 10), MouseButton.Left, RawInputModifiers.None);
+
+        // 显示区外的留白点击不落笔（若无守卫，坐标钳制会把边缘像素涂白）
+        host.Window.MouseDown(new Point(360, 120), MouseButton.Left);
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(IsWhite(host.Mask, 63, 24));
+
+        host.Window.Close();
+    }
+
+    [AvaloniaFact]
+    public void 快捷缩放动作_步进_实际大小_适应_标签同步()
+    {
+        var host = CreateEditor();
+        Assert.Equal("500%", host.Editor.ZoomLabel);
+
+        host.Editor.ZoomIn();
+        Assert.Equal(6.25, host.Editor.Zoom, 5);
+        Assert.Equal("625%", host.Editor.ZoomLabel);
+
+        host.Editor.SetActualSize();
+        Assert.Equal(1, host.Editor.Zoom, 5);
+        Assert.Equal("100%", host.Editor.ZoomLabel);
+
+        host.Editor.FitToWindow();
+        Assert.Equal(5, host.Editor.Zoom, 5);
+        Assert.Equal("500%", host.Editor.ZoomLabel);
+
+        host.Window.Close();
+    }
+
+    [AvaloniaFact]
+    public void 更换不同尺寸源图_自动重新适应窗口()
+    {
+        var host = CreateEditor();
+        host.Editor.HandleMagnify(new Point(WinW / 2.0, WinH / 2.0), 1.2);
+        Assert.Equal(6, host.Editor.Zoom, 5);
+
+        host.Editor.Source = MakeSolidBitmap(SrcW / 2, SrcH / 2); // 32×24
+        host.Window.CaptureRenderedFrame();
+        Assert.Equal(10, host.Editor.Zoom, 5); // min(320/32, 240/24)
+        Assert.Equal("1000%", host.Editor.ZoomLabel);
+
+        host.Window.Close();
+    }
+
+    [AvaloniaFact]
+    public void 缩放越界_钳制到范围()
+    {
+        var host = CreateEditor();
+
+        host.Editor.HandleMagnify(new Point(WinW / 2.0, WinH / 2.0), 100); // 5×100 → 上限 32
+        Assert.Equal(32, host.Editor.Zoom, 5);
+
+        host.Editor.HandleMagnify(new Point(WinW / 2.0, WinH / 2.0), 0.001); // 32×0.001 → 下限 0.05
+        Assert.Equal(0.05, host.Editor.Zoom, 5);
+
+        host.Window.Close();
+    }
 }

@@ -108,6 +108,57 @@ public partial class MainWindow : Window
 
     private void OnSettingsClick(object? sender, RoutedEventArgs e) => OpenSettings();
 
+    // ---- 画布缩放/平移的键盘入口（视图操作走控件，不经 ViewModel 命令）----
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.Handled) return;
+
+        // 空格按住 = 临时平移模式（拖拽中松开不打断，直至鼠标抬起）
+        if (e.Key == Key.Space && e.KeyModifiers == KeyModifiers.None)
+        {
+            Editor.SetPanMode(true);
+            return;
+        }
+
+        // macOS 上 ⌘ 对应 Meta：Ctrl/⌘ + 加减号步进缩放，0 适应窗口，1 实际大小
+        bool ctrl = e.KeyModifiers.HasFlag(KeyModifiers.Control)
+            || e.KeyModifiers.HasFlag(KeyModifiers.Meta);
+        if (!ctrl) return;
+        switch (e.Key)
+        {
+            case Key.OemPlus or Key.Add:
+                Editor.ZoomIn();
+                e.Handled = true;
+                break;
+            case Key.OemMinus or Key.Subtract:
+                Editor.ZoomOut();
+                e.Handled = true;
+                break;
+            case Key.D0:
+                Editor.FitToWindow();
+                e.Handled = true;
+                break;
+            case Key.D1:
+                Editor.SetActualSize();
+                e.Handled = true;
+                break;
+        }
+    }
+
+    protected override void OnKeyUp(KeyEventArgs e)
+    {
+        base.OnKeyUp(e);
+        if (e.Key == Key.Space) Editor.SetPanMode(false);
+    }
+
+    // 缩放胶囊按钮
+    private void OnZoomInClick(object? sender, RoutedEventArgs e) => Editor.ZoomIn();
+    private void OnZoomOutClick(object? sender, RoutedEventArgs e) => Editor.ZoomOut();
+    private void OnZoomActualClick(object? sender, RoutedEventArgs e) => Editor.SetActualSize();
+    private void OnZoomFitClick(object? sender, RoutedEventArgs e) => Editor.FitToWindow();
+
     private async void OnDrop(object? sender, DragEventArgs e)
     {
         if (DataContext is not MainWindowViewModel viewModel) return;
