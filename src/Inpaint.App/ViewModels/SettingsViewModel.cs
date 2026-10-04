@@ -39,6 +39,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     public static string ZoomKeysKeycap => $"{ModifierGlyph}0/1";
     public static string OpenKeycap => $"{ModifierGlyph}O";
     public static string PasteKeycap => $"{ModifierGlyph}V";
+    public static string CopyKeycap => $"{ModifierGlyph}C";
     public static string ExportKeycap => $"{ModifierGlyph}S";
     public static string UndoKeycap => $"{ModifierGlyph}Z";
 

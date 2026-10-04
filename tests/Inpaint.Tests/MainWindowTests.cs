@@ -173,7 +173,7 @@ public class MainWindowTests
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
             Dispatcher.UIThread.RunJobs();
             Assert.False(vm.IsBusy);
-            Assert.Equal(string.Format(Translations.Instance.LoadedStatusAuto, 6, 4), vm.StatusText);
+            Assert.Equal(string.Format(Translations.Instance.LoadedStatusAuto, 6, 4), vm.StatusDisplay);
         }
         finally
         {
@@ -197,6 +197,45 @@ public class MainWindowTests
 
             Assert.Equal(Translations.Instance.ClipboardNoImage, vm.StatusText);
             Assert.False(vm.HasImage);
+        }
+        finally
+        {
+            await window.Clipboard!.ClearAsync(); // headless 剪贴板跨测试共享，清场防泄漏
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task CtrlC按键_复制当前画布图片到剪贴板_繁忙时禁用()
+    {
+        var window = new MainWindow();
+        window.Show();
+        try
+        {
+            window.Focus();
+            var vm = Assert.IsType<MainWindowViewModel>(window.DataContext);
+            vm.AdoptBitmap(new WriteableBitmap(new PixelSize(6, 4), new Vector(96, 96), PixelFormats.Bgra8888));
+
+            // ⌘ 在 macOS 上是 Meta，处理逻辑与 Ctrl 同路（与 ⌘V 粘贴同一 OnKeyDown 分支）
+            window.KeyPress(Key.C, RawInputModifiers.Meta, PhysicalKey.C, null);
+            await vm.CopyNodeCommand.ExecutionTask!;
+
+            Assert.Equal(string.Format(Translations.Instance.CopiedToClipboard, vm.CurrentNode!.Title), vm.StatusText);
+            using (var transfer = await window.Clipboard!.TryGetDataAsync())
+            {
+                Assert.NotNull(transfer);
+                var bitmap = await transfer!.TryGetValueAsync(DataFormat.Bitmap);
+                Assert.NotNull(bitmap);
+                Assert.Equal(new PixelSize(6, 4), bitmap!.PixelSize);
+            }
+
+            // 繁忙时命令经 CanExecute 禁用：再按键不触发复制，剪贴板保持为空
+            vm.IsBusy = true;
+            Assert.False(vm.CopyNodeCommand.CanExecute(vm.CurrentNode));
+            await window.Clipboard.ClearAsync();
+            window.KeyPress(Key.C, RawInputModifiers.Meta, PhysicalKey.C, null);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Null(await window.Clipboard.TryGetDataAsync());
         }
         finally
         {

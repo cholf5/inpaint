@@ -157,7 +157,7 @@ public partial class MainWindow : Window
             }
         }
 
-        // macOS 上 ⌘ 对应 Meta：Ctrl/⌘ + 加减号步进缩放，0 适应窗口，1 实际大小，V 粘贴打开剪贴板图片
+        // macOS 上 ⌘ 对应 Meta：Ctrl/⌘ + 加减号步进缩放，0 适应窗口，1 实际大小，V 粘贴，C 复制当前画布图片
         bool ctrl = e.KeyModifiers.HasFlag(KeyModifiers.Control)
             || e.KeyModifiers.HasFlag(KeyModifiers.Meta);
         if (!ctrl) return;
@@ -183,6 +183,12 @@ public partial class MainWindow : Window
                 // 手动触发须先过 CanExecute（命令绑定才检查，AsyncRelayCommand.Execute 不检查）
                 if (DataContext is MainWindowViewModel viewModel && viewModel.PasteCommand.CanExecute(null))
                     viewModel.PasteCommand.Execute(null);
+                e.Handled = true;
+                break;
+            case Key.C:
+                // 复制当前预览的历史节点（与历史节点右键菜单同一命令）；无图或繁忙时命令本就禁用
+                if (DataContext is MainWindowViewModel copyVm && copyVm.CopyNodeCommand.CanExecute(copyVm.CurrentNode))
+                    copyVm.CopyNodeCommand.Execute(copyVm.CurrentNode);
                 e.Handled = true;
                 break;
         }

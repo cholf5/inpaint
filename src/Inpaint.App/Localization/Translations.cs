@@ -129,6 +129,7 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(SectionShortcuts)] = "快捷键",
         [nameof(ShortcutOpen)] = "打开图片",
         [nameof(ShortcutPaste)] = "从剪贴板粘贴图片",
+        [nameof(ShortcutCopy)] = "复制当前图片到剪贴板",
         [nameof(ShortcutExport)] = "保存当前图片",
         [nameof(ShortcutUndo)] = "撤销到上一历史节点",
         [nameof(ShortcutBrushDecrease)] = "缩小画笔",
@@ -280,6 +281,7 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(SectionShortcuts)] = "Shortcuts",
         [nameof(ShortcutOpen)] = "Open an image",
         [nameof(ShortcutPaste)] = "Paste an image from the clipboard",
+        [nameof(ShortcutCopy)] = "Copy the current image to the clipboard",
         [nameof(ShortcutExport)] = "Save the current image",
         [nameof(ShortcutUndo)] = "Undo to the previous history node",
         [nameof(ShortcutBrushDecrease)] = "Shrink brush",
@@ -492,6 +494,7 @@ public sealed class Translations : INotifyPropertyChanged
     public string SectionShortcuts => Get();
     public string ShortcutOpen => Get();
     public string ShortcutPaste => Get();
+    public string ShortcutCopy => Get();
     public string ShortcutExport => Get();
     public string ShortcutUndo => Get();
     public string ShortcutBrushDecrease => Get();

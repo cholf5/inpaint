@@ -104,7 +104,7 @@
         <TabItem Header="{Binding SectionShortcuts, Source={x:Static loc:Translations.Instance}}">
             <StackPanel Margin="16,14" Spacing="14">
                 <!-- 只读参考列表：左列键帽、右列动作；键名语言无关，带修饰键的键帽随平台（macOS ⌘、其余 Ctrl）走 x:Static -->
-                <Grid ColumnDefinitions="92,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="8">
+                <Grid ColumnDefinitions="92,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="8">
                     <Border Grid.Row="0" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center"
                             Padding="12,1" CornerRadius="4" BorderThickness="1" BorderBrush="#40000000">
                         <TextBlock Text="[ -"/>
@@ -161,15 +161,21 @@
                                Text="{Binding ShortcutPaste, Source={x:Static loc:Translations.Instance}}"/>
                     <Border Grid.Row="9" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center"
                             Padding="12,1" CornerRadius="4" BorderThickness="1" BorderBrush="#40000000">
-                        <TextBlock Text="{x:Static vm:SettingsViewModel.ExportKeycap}"/>
+                        <TextBlock Text="{x:Static vm:SettingsViewModel.CopyKeycap}"/>
                     </Border>
                     <TextBlock Grid.Row="9" Grid.Column="1" VerticalAlignment="Center"
-                               Text="{Binding ShortcutExport, Source={x:Static loc:Translations.Instance}}"/>
+                               Text="{Binding ShortcutCopy, Source={x:Static loc:Translations.Instance}}"/>
                     <Border Grid.Row="10" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                            Padding="12,1" CornerRadius="4" BorderThickness="1" BorderBrush="#40000000">
+                        <TextBlock Text="{x:Static vm:SettingsViewModel.ExportKeycap}"/>
+                    </Border>
+                    <TextBlock Grid.Row="10" Grid.Column="1" VerticalAlignment="Center"
+                               Text="{Binding ShortcutExport, Source={x:Static loc:Translations.Instance}}"/>
+                    <Border Grid.Row="11" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center"
                             Padding="12,1" CornerRadius="4" BorderThickness="1" BorderBrush="#40000000">
                         <TextBlock Text="{x:Static vm:SettingsViewModel.UndoKeycap}"/>
                     </Border>
-                    <TextBlock Grid.Row="10" Grid.Column="1" VerticalAlignment="Center"
+                    <TextBlock Grid.Row="11" Grid.Column="1" VerticalAlignment="Center"
                                Text="{Binding ShortcutUndo, Source={x:Static loc:Translations.Instance}}"/>
                 </Grid>
             </StackPanel>
