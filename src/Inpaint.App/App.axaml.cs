@@ -26,6 +26,8 @@ public partial class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            // macOS 开发期裸进程补 Dock 图标（正式 bundle 由 Info.plist 提供，见 MacDockIcon）
+            MacDockIcon.TrySetFromEmbeddedIcon();
             desktop.MainWindow = new MainWindow(settings);
             // 启动检查更新是显式 opt-in（默认关，见 AppSettings.CheckUpdateOnStartup），不阻塞窗口出现
             if (settings.CheckUpdateOnStartup && desktop.MainWindow.DataContext is MainWindowViewModel viewModel)

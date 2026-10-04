@@ -7,6 +7,7 @@ lxfater/inpaint-web 的 C# / .NET 10 + Avalonia 桌面重写：MI-GAN 图片修�
 - 需要 .NET 10 SDK。`dotnet build Inpaint.slnx`；`dotnet run --project src/Inpaint.App`。
 - 单元测试在 `tests/Inpaint.Tests`（xunit.v3 + Avalonia.Headless），`dotnet test` 运行；覆盖 Core 布局/遮罩转换、Inference 分块语义（`UpscaleEngine.FillTile`/`CopyTileCore` 为 internal，经 `InternalsVisibleTo` 供测试）与 App 层（ViewModel 生命周期、画布指针输入，`[AvaloniaFact]` 走 headless）。不含需要模型文件或 ONNX session 的路径。**没有 .editorconfig / 格式化配置**——除测试外，验证手段就是编译通过加手动运行。
 - headless 测试入口 `TestAppBuilder` 必须用 `UseHeadlessDrawing = false` + `.UseSkia()`：headless 自绘位图的 `WriteableBitmap.Lock`/`CopyPixels` 语义与生产 Skia 不一致，会得到假结果。注意 App 命名空间与同名命名空间冲突（`Inpaint.App.App` 需别名）。
+- macOS Dock 图标只来自 `.app` bundle 的 Info.plist（`CFBundleIconFile`）或运行时设 `NSApplication`，XAML `Window.Icon`/csproj `ApplicationIcon` 对它无效。开发期 `dotnet run` 是裸进程，由 `MacDockIcon`（libobjc 手发消息，失败静默）在桌面生命周期建立后设内嵌 icns 补上；正式包 `scripts/package-macos.sh [arm64|x64] [--fdd]` 产出 `artifacts/macos/Inpaint.app`（自包含、ad-hoc 签名，版本读 csproj `<Version>`），换 icns 后 Dock 有缓存需 `touch` bundle 或重启 Dock。
 
 ## 目录与分层
 

@@ -6,6 +6,7 @@
         x:Class="Inpaint.App.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="{Binding AppTitle, Source={x:Static loc:Translations.Instance}}"
+        Icon="avares://Inpaint.App/Assets/app-icon.ico"
         Width="1200" Height="820" MinWidth="860" MinHeight="600">
     <Window.KeyBindings>
         <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenCommand}"/>

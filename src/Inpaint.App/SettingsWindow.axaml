@@ -6,6 +6,7 @@
         x:Class="Inpaint.App.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
         Title="{Binding SettingsTitle, Source={x:Static loc:Translations.Instance}}"
+        Icon="avares://Inpaint.App/Assets/app-icon.ico"
         Width="560" SizeToContent="Height" CanResize="False"
         WindowStartupLocation="CenterOwner">
     <!-- 修改即时生效（主题/语言/设备），关闭即完成；ItemsSource 声明在 SelectedIndex 之前，
