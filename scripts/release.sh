@@ -88,11 +88,14 @@ fi
 
 command -v gh >/dev/null 2>&1 || { echo "未安装 gh，无法 watch，手动看 $RUN_URL" >&2; exit 1; }
 
-# 找 tag 触发的 run（push 后要几秒才注册得上）
+# 找 tag 触发的 run（push 后要几秒才注册得上）。必须按 tag 指向的 commit 过滤：
+# 重发同版本时旧 run 同样命中 --branch 的 tag 名，只按分支取会拿到旧 run
+TAG_SHA=$(git rev-parse "$TAG^{commit}")
 RUN_ID=
 i=0
 while [ $i -lt 12 ]; do
-  RUN_ID=$(gh run list --branch "$TAG" --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)
+  RUN_ID=$(gh run list --branch "$TAG" --limit 10 --json databaseId,headSha \
+    --jq "[.[] | select(.headSha == \"$TAG_SHA\")][0].databaseId" 2>/dev/null || true)
   [ -n "$RUN_ID" ] && [ "$RUN_ID" != null ] && break
   i=$((i + 1)); sleep 5
 done
