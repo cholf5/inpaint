@@ -457,13 +457,37 @@ public class MainWindowViewModelTests
     {
         var vm = new MainWindowViewModel(null, null); // 默认开
         vm.AdoptBitmap(MakeBitmap(6, 4));
-        Assert.Equal("已加载 6×4，涂抹后松手即自动修复", vm.StatusText);
+        Assert.Equal("已加载 6×4，涂抹后松手即自动修复", vm.StatusDisplay);
 
         vm.Settings.InpaintOnStrokeRelease = false;
         vm.AdoptBitmap(MakeBitmap(6, 4));
         Assert.Equal(
             string.Format(Translations.Instance.LoadedStatus, 6, 4, Translations.Instance.Inpaint),
-            vm.StatusText);
+            vm.StatusDisplay);
+
+        // 提示驻留期间切换设置，文案即时跟随（工具栏修复按钮同步显隐）
+        vm.Settings.InpaintOnStrokeRelease = true;
+        Assert.Equal("已加载 6×4，涂抹后松手即自动修复", vm.StatusDisplay);
+    }
+
+    [AvaloniaFact]
+    public void AdoptBitmap_语言切换后加载提示按新语言重排()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        vm.AdoptBitmap(MakeBitmap(6, 4));
+        Assert.StartsWith("已加载 6×4", vm.StatusDisplay);
+
+        // 回归：加载提示是空闲态驻留文本，语言切换后必须重算，
+        // 不能像瞬态状态那样保持出现时的语言（否则英文界面底部残留中文句子）
+        Translations.Instance.SetLanguage(AppLanguage.English);
+        try
+        {
+            Assert.Equal(string.Format(Translations.Instance.LoadedStatusAuto, 6, 4), vm.StatusDisplay);
+        }
+        finally
+        {
+            Translations.Instance.SetLanguage(AppLanguage.SimplifiedChinese);
+        }
     }
 
     [AvaloniaFact]
@@ -747,7 +771,7 @@ public class MainWindowViewModelTests
             Assert.Equal(new PixelSize(3, 2), vm.CurrentImage!.PixelSize);
             var root = Assert.Single(vm.HistoryNodes);
             Assert.Same(harness.Bitmap, root.Image); // 采纳为历史树根，无来源文件名
-            Assert.StartsWith("已加载 3×2", vm.StatusText);
+            Assert.StartsWith("已加载 3×2", vm.StatusDisplay);
         }
         finally
         {

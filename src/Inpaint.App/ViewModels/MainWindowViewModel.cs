@@ -69,6 +69,9 @@ public partial class MainWindowViewModel : ObservableObject
     private InpaintEngine? _inpaintEngine;
     private UpscaleEngine? _upscaleEngine;
     private bool _resetUpscaleWhenIdle;
+    // 「已加载 W×H…」是空闲态驻留提示（区别于一次性瞬态结果）：尺寸存字段、文本经 LoadedHint
+    // 按当前语言实时重算，语言切换或「松手即修复」设置变化后状态栏不会停留在旧语言的句子
+    private (int Width, int Height)? _loadedHintSize;
 
     [ObservableProperty] private Bitmap? _currentImage;
     [ObservableProperty] private MaskLayer? _maskLayer;
@@ -121,7 +124,7 @@ public partial class MainWindowViewModel : ObservableObject
         // 画笔初始值来自设置（钳制到滑块范围）；后续设置变更经 OnSettingsChanged 同步
         _brushSize = Math.Clamp(_settings.DefaultBrushSize, MinBrushSize, MaxBrushSize);
         _settings.PropertyChanged += OnSettingsChanged;
-        // 语言切换时刷新历史面板标题、初始提示这类派生文本；瞬态状态文本保持出现时的语言直到下次更新
+        // 语言切换时刷新历史面板标题、初始提示/加载提示这类空闲态派生文本；瞬态状态文本保持出现时的语言直到下次更新
         Translations.Instance.PropertyChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(HistoryTitle));
@@ -132,8 +135,19 @@ public partial class MainWindowViewModel : ObservableObject
     /// <summary>历史面板标题（含节点计数）；历史或语言变化时刷新。</summary>
     public string HistoryTitle => string.Format(Translations.Instance.HistoryTitleFormat, HistoryNodes.Count);
 
-    /// <summary>状态栏显示文本：无瞬态状态时显示初始提示（作为派生文本随语言切换刷新）。</summary>
-    public string StatusDisplay => StatusText ?? Translations.Instance.InitialStatus;
+    /// <summary>状态栏显示文本：优先瞬态状态，其次加载完成提示，最后初始提示（空闲文本随语言切换刷新）。</summary>
+    public string StatusDisplay => StatusText ?? LoadedHint ?? Translations.Instance.InitialStatus;
+
+    /// <summary>加载完成提示：空闲态驻留文本，按当前语言实时重算。</summary>
+    public string? LoadedHint => _loadedHintSize is { } size ? FormatLoadedHint(size) : null;
+
+    /// <summary>按当前语言与「松手即修复」设置格式化加载完成提示。</summary>
+    private string FormatLoadedHint((int Width, int Height) size) =>
+        _settings.InpaintOnStrokeRelease
+            ? string.Format(Translations.Instance.LoadedStatusAuto, size.Width, size.Height)
+            : string.Format(
+                Translations.Instance.LoadedStatus,
+                size.Width, size.Height, Translations.Instance.Inpaint);
 
     /// <summary>共享设置实例（设置窗口直接编辑它，主窗口经设备/画笔订阅响应变更）。</summary>
     public AppSettings Settings => _settings;
@@ -157,6 +171,8 @@ public partial class MainWindowViewModel : ObservableObject
                 break;
             case nameof(AppSettings.InpaintOnStrokeRelease):
                 OnPropertyChanged(nameof(ShowInpaintButton));
+                // 加载提示驻留期间文案跟随该设置切换（松手触发 vs 点修复按钮）
+                if (_loadedHintSize is not null) OnPropertyChanged(nameof(StatusDisplay));
                 break;
         }
     }
@@ -305,12 +321,11 @@ public partial class MainWindowViewModel : ObservableObject
         CurrentImage = bitmap;
         SetMask(bitmap.PixelSize);
         HasImage = true;
-        // 「松手即修复」开启时工具栏没有修复按钮，提示语相应换成松手触发
-        StatusText = _settings.InpaintOnStrokeRelease
-            ? string.Format(Translations.Instance.LoadedStatusAuto, bitmap.PixelSize.Width, bitmap.PixelSize.Height)
-            : string.Format(
-                Translations.Instance.LoadedStatus,
-                bitmap.PixelSize.Width, bitmap.PixelSize.Height, Translations.Instance.Inpaint);
+        // 「松手即修复」开启时工具栏没有修复按钮，提示语相应换成松手触发；
+        // 提示是空闲态驻留文本，尺寸记入字段经 LoadedHint 按当前语言重算（而非预格式化成瞬态状态）
+        _loadedHintSize = (bitmap.PixelSize.Width, bitmap.PixelSize.Height);
+        StatusText = null; // 让位：清掉上一张图的瞬态状态（错误/结果），状态栏回到加载提示
+        OnPropertyChanged(nameof(StatusDisplay)); // 首张图 StatusText 空转无通知，这里补一次让提示浮现
         UndoCommand.NotifyCanExecuteChanged();
     }
 
