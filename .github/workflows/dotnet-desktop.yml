@@ -103,12 +103,15 @@ jobs:
       - name: Build setup installer
         run: |
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DAppVersion=$env:VERSION scripts\Inpaint.iss
+          # 挪到仓库根：artifact 必须扁平，否则 release job 的 gh release upload dist/*
+          # 会遇到目录（upload-artifact 按多路径最小公共祖先保留结构）
+          Move-Item artifacts/windows/Inpaint-*-win-x64-setup.exe .
       - uses: actions/upload-artifact@v4
         with:
           name: package-win-x64
           path: |
             Inpaint-*-win-x64.zip
-            artifacts/windows/Inpaint-*-win-x64-setup.exe
+            Inpaint-*-win-x64-setup.exe
           if-no-files-found: error
 
   linux:
