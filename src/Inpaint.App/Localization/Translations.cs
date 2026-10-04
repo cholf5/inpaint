@@ -277,7 +277,7 @@ public sealed class Translations : INotifyPropertyChanged
             "A fully local image inpainting & upscaling tool: MI-GAN inpainting + Real-ESRGAN ×4 upscaling. " +
             "All inference runs on-device via ONNX Runtime — images never leave your machine.",
         [nameof(AuthorLabel)] = "Author",
-        [nameof(AuthorName)] = "周尔复",
+        [nameof(AuthorName)] = "Cholf",
         [nameof(LicenseLabel)] = "License",
         [nameof(RepoLabel)] = "Repository",
         [nameof(CheckUpdateOnStartupLabel)] = "Check for updates at startup",
