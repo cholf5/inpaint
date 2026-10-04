@@ -1,7 +1,8 @@
 # CI / 打包流水线
 #
 # 触发与行为：
-#   - PR / push 到 main：只跑单元测试。
+#   - PR / push 到 main：只跑单元测试（纯文档改动如 **.md、LICENSE、docs/** 不触发；
+#     tag push 不受 paths 过滤影响，永远触发）。
 #   - tag v*：测试通过后打包 —— macOS .app（scripts/package-macos.sh，arm64+x64，
 #     自包含、ad-hoc 签名）、Windows win-x64 自包含 zip + Inno Setup 安装包、Linux linux-x64 zip，
 #     创建 GitHub Release 并上传产物。
@@ -15,8 +16,20 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
+    # 纯文档/杂项改动不触发测试。paths 过滤对 tag push 不生效（官方文档明确
+    # "Path filters are not evaluated for pushes of tags"），故与 tags 写在同一块不影响发版。
+    paths-ignore:
+      - "**.md"
+      - "LICENSE"
+      - ".gitignore"
+      - "docs/**"
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "LICENSE"
+      - ".gitignore"
+      - "docs/**"
   workflow_dispatch:
 
 concurrency:
