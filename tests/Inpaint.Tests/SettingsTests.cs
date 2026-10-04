@@ -32,6 +32,8 @@ public class SettingsTests
                 MaxHistory = 40,
                 CheckUpdateOnStartup = true,
                 InpaintOnStrokeRelease = false, // 默认已开，存非默认方向验证往返
+                LastExportFormat = ExportFormat.WebP,
+                LastExportQuality = 70,
             };
             SettingsService.Save(settings, path);
 
@@ -44,6 +46,8 @@ public class SettingsTests
             Assert.Equal(40, loaded.MaxHistory);
             Assert.True(loaded.CheckUpdateOnStartup);
             Assert.False(loaded.InpaintOnStrokeRelease);
+            Assert.Equal(ExportFormat.WebP, loaded.LastExportFormat);
+            Assert.Equal(70, loaded.LastExportQuality);
         }
         finally
         {
@@ -63,6 +67,9 @@ public class SettingsTests
         Assert.False(missing.CheckUpdateOnStartup);
         // 涂抹松手立即修复默认开：与 Web 版手感一致
         Assert.True(missing.InpaintOnStrokeRelease);
+        // 上次导出参数默认 PNG/85（与导出对话框的原默认一致）
+        Assert.Equal(ExportFormat.Png, missing.LastExportFormat);
+        Assert.Equal(ImageExporter.DefaultQuality, missing.LastExportQuality);
 
         var corruptPath = TempPath(".json");
         File.WriteAllText(corruptPath, "{ not json");
@@ -82,17 +89,30 @@ public class SettingsTests
     public void Load_数值越界_收敛到合法区间()
     {
         var path = TempPath(".json");
-        File.WriteAllText(path, """{"Theme":"Dark","MaxHistory":1000,"DefaultBrushSize":9999}""");
+        File.WriteAllText(path, """{"Theme":"Dark","MaxHistory":1000,"DefaultBrushSize":9999,"LastExportQuality":0}""");
         try
         {
             var loaded = SettingsService.Load(path);
 
             Assert.Equal(100, loaded.MaxHistory);
             Assert.Equal(160, loaded.DefaultBrushSize);
+            Assert.Equal(1, loaded.LastExportQuality);
         }
         finally
         {
             File.Delete(path);
+        }
+
+        // 枚举存名字，但手写成越界数字也会被收敛（JsonStringEnumConverter 接受数字）
+        var enumPath = TempPath(".json");
+        File.WriteAllText(enumPath, """{"LastExportFormat":7}""");
+        try
+        {
+            Assert.Equal(ExportFormat.WebP, SettingsService.Load(enumPath).LastExportFormat);
+        }
+        finally
+        {
+            File.Delete(enumPath);
         }
     }
 

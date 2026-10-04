@@ -681,4 +681,51 @@ public class MainWindowViewModelTests
         Assert.False(vm.IsBusy);
         Assert.Single(vm.HistoryNodes); // 历史未新增节点，引擎未创建
     }
+
+    // ---- 导出参数记忆：持久化在共享设置（LastExportFormat/LastExportQuality），保存目录仍只在内存 ----
+
+    [AvaloniaFact]
+    public async Task 导出确认_格式质量写回共享设置()
+    {
+        var settings = new AppSettings();
+        var vm = new MainWindowViewModel(null, null, settings);
+        vm.AdoptBitmap(MakeBitmap(4, 4));
+        ExportOptions? initial = null;
+        vm.ExportDialogProvider = (_, options) =>
+        {
+            initial = options;
+            return Task.FromResult<ExportChoice?>(new ExportChoice(ExportFormat.WebP, 70, []));
+        };
+
+        var choice = await vm.ShowExportDialogAsync(vm.CurrentNode!);
+
+        // 初始值来自设置默认（PNG/85），确认后把本次选择写回设置（生产环境由 App.WireSettings 落盘）
+        Assert.Equal(ExportFormat.Png, initial!.Format);
+        Assert.Equal(ImageExporter.DefaultQuality, initial.Quality);
+        Assert.Equal(ExportFormat.WebP, settings.LastExportFormat);
+        Assert.Equal(70, settings.LastExportQuality);
+        Assert.Equal(ExportFormat.WebP, choice!.Format);
+    }
+
+    [AvaloniaFact]
+    public async Task 重启后上次导出参数是对话框初始值_对话框取消不改记忆()
+    {
+        var settings = new AppSettings { LastExportFormat = ExportFormat.Jpeg, LastExportQuality = 60 };
+        var vm = new MainWindowViewModel(null, null, settings);
+        vm.AdoptBitmap(MakeBitmap(4, 4));
+        ExportOptions? initial = null;
+        vm.ExportDialogProvider = (_, options) =>
+        {
+            initial = options;
+            return Task.FromResult<ExportChoice?>(null); // 用户在导出对话框取消
+        };
+
+        var choice = await vm.ShowExportDialogAsync(vm.CurrentNode!);
+
+        Assert.Null(choice);
+        Assert.Equal(ExportFormat.Jpeg, initial!.Format);
+        Assert.Equal(60, initial.Quality);
+        Assert.Equal(ExportFormat.Jpeg, settings.LastExportFormat);
+        Assert.Equal(60, settings.LastExportQuality);
+    }
 }

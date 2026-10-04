@@ -661,18 +661,29 @@ public partial class MainWindowViewModel : ObservableObject
     /// </summary>
     internal Func<ImageHistoryNode, ExportOptions?, Task<ExportChoice?>>? ExportDialogProvider;
 
-    private async Task SaveToPickerAsync(ImageHistoryNode node)
+    /// <summary>
+    /// 导出对话框环节：以上次导出参数（持久化在共享设置里）为初始值弹出对话框，确认后把
+    /// 格式与质量写回设置（App.WireSettings 订阅变更落盘，重启后仍是初始值）。返回 null = 取消。
+    /// internal 供单测（IStorageProvider 带防实现哨兵成员，替身造不出来，对话框与文件选择器在此拆分）。
+    /// </summary>
+    internal async Task<ExportChoice?> ShowExportDialogAsync(ImageHistoryNode node)
     {
-        if (_storage is null) return;
-        // 对话框先行（预估与编码都在其中完成），取消则不弹文件选择器；初始值 = 上次导出参数（持久化在共享设置里）
         var choice = ExportDialogProvider is { } provider
             ? await provider(node, new ExportOptions(_settings.LastExportFormat, _settings.LastExportQuality))
             : null;
+        if (choice is null) return null;
+        _settings.LastExportFormat = choice.Format;
+        _settings.LastExportQuality = choice.Quality;
+        return choice;
+    }
+
+    private async Task SaveToPickerAsync(ImageHistoryNode node)
+    {
+        if (_storage is null) return;
+        // 对话框先行（预估与编码都在其中完成），取消则不弹文件选择器
+        var choice = await ShowExportDialogAsync(node);
         if (choice is null) return;
         var format = choice.Format;
-        // 记住本次导出参数：写入共享设置即落盘（App.WireSettings 订阅变更持久化），重启后仍是初始值
-        _settings.LastExportFormat = format;
-        _settings.LastExportQuality = choice.Quality;
         var extension = ExtensionFor(format);
         // 起始位置与重名探测用同一目录：上次保存目录优先，退回源文件目录
         var dir = _lastSaveDirectory ?? _sourceDirectory;

@@ -44,4 +44,11 @@ public partial class AppSettings : ObservableObject
     /// <summary>涂抹松手后立即执行修复（与 Web 版手感一致，默认开，可关回按钮式）。开启时主界面隐藏修复按钮；
     /// 清除涂抹按钮无状态化，仅在画布残留未处理涂抹时出现。</summary>
     [ObservableProperty] private bool _inpaintOnStrokeRelease = true;
+
+    /// <summary>上次导出格式：导出对话框初始值的持久化记忆（原 _lastExportOptions 只在内存，重启即丢）。
+    /// 不存上次保存目录——涉及隐私且换机后路径无效。合法区间见 SettingsService.Sanitize。</summary>
+    [ObservableProperty] private ExportFormat _lastExportFormat = ExportFormat.Png;
+
+    /// <summary>上次导出质量（1..100，仅 JPEG/WebP 生效；PNG 无损不显示但仍记忆，切回有损格式时沿用）。</summary>
+    [ObservableProperty] private int _lastExportQuality = ImageExporter.DefaultQuality;
 }

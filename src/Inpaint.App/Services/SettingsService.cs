@@ -49,6 +49,8 @@ public static class SettingsService
     {
         settings.DefaultBrushSize = Math.Clamp(settings.DefaultBrushSize, 4, 160);
         settings.MaxHistory = Math.Clamp(settings.MaxHistory, 5, 100);
+        settings.LastExportFormat = (ExportFormat)Math.Clamp((int)settings.LastExportFormat, 0, 2);
+        settings.LastExportQuality = Math.Clamp(settings.LastExportQuality, 1, 100);
         return settings;
     }
 }
