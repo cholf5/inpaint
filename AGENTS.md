@@ -1,11 +1,11 @@
 # AGENTS.md
 
-lxfater/inpaint-web 的 C# / .NET 10 + Avalonia 桌面重写：MI-GAN 图片修复 + Real-ESRGAN ×4 高清化，纯本地 ONNX Runtime 推理，无服务器、无 JS。
+lxfater/inpaint-web 的 C# / .NET 10 + Avalonia 桌面重写：MI-GAN 图片修复 + Real-ESRGAN ×4 高清化 + 导出压缩（PNG/JPEG/WebP），纯本地处理，无服务器、无 JS。
 
 ## 构建 / 运行
 
 - 需要 .NET 10 SDK。`dotnet build Inpaint.slnx`；`dotnet run --project src/Inpaint.App`。
-- 单元测试在 `tests/Inpaint.Tests`（xunit.v3 + Avalonia.Headless），`dotnet test` 运行；覆盖 Core 布局/遮罩转换、Inference 分块语义（`UpscaleEngine.FillTile`/`CopyTileCore` 为 internal，经 `InternalsVisibleTo` 供测试）与 App 层（ViewModel 生命周期、画布指针输入，`[AvaloniaFact]` 走 headless）。不含需要模型文件或 ONNX session 的路径。**没有 .editorconfig / 格式化配置**——除测试外，验证手段就是编译通过加手动运行。CI（ubuntu）会跑同一套测试，两条已踩过的跨平台坑：像素断言不能采文本带（HistoryGraphView 标签 y≈94~106，Linux 次像素 AA/字体回退会给字形边缘染上彩边，采样点须选纯图形空白带）；测试不得假设真实用户 `settings.json` 已存在（全新机器/CI 上没有，快照前判存在性、结束时按原状删除或还原）。
+- 单元测试在 `tests/Inpaint.Tests`（xunit.v3 + Avalonia.Headless），`dotnet test` 运行；覆盖 Core 布局/遮罩转换、Inference 分块语义（`UpscaleEngine.FillTile`/`CopyTileCore` 为 internal，经 `InternalsVisibleTo` 供测试）与 App 层（ViewModel 生命周期、画布指针输入，`[AvaloniaFact]` 走 headless）。**需要 Avalonia 平台的参数化测试必须用 `[AvaloniaTheory]`**——裸 `[Theory]` 不走 headless 引导，`new WriteableBitmap` 直接报 "Unable to locate IPlatformRenderInterface"。不含需要模型文件或 ONNX session 的路径。**没有 .editorconfig / 格式化配置**——除测试外，验证手段就是编译通过加手动运行。CI（ubuntu）会跑同一套测试，两条已踩过的跨平台坑：像素断言不能采文本带（HistoryGraphView 标签 y≈94~106，Linux 次像素 AA/字体回退会给字形边缘染上彩边，采样点须选纯图形空白带）；测试不得假设真实用户 `settings.json` 已存在（全新机器/CI 上没有，快照前判存在性、结束时按原状删除或还原）。
 - headless 测试入口 `TestAppBuilder` 必须用 `UseHeadlessDrawing = false` + `.UseSkia()`：headless 自绘位图的 `WriteableBitmap.Lock`/`CopyPixels` 语义与生产 Skia 不一致，会得到假结果。注意 App 命名空间与同名命名空间冲突（`Inpaint.App.App` 需别名）。
 - macOS Dock 图标只来自 `.app` bundle 的 Info.plist（`CFBundleIconFile`）或运行时设 `NSApplication`，XAML `Window.Icon`/csproj `ApplicationIcon` 对它无效。开发期 `dotnet run` 是裸进程，由 `MacDockIcon`（libobjc 手发消息，失败静默）在桌面生命周期建立后设内嵌 icns 补上（对 bundle 是覆盖而非幂等）；正式包 `scripts/package-macos.sh [arm64|x64] [--fdd]` 产出 `artifacts/macos/Inpaint.app`（自包含、ad-hoc 签名，版本读 csproj `<Version>`），换 icns 后 Dock 有缓存需 `touch` bundle 或重启 Dock。图标圆角烤在素材里（Apple 模板：1024 画布、824 身、185.4 圆角）：Tahoe 会给 Finder 里直角 icns 自动蒙圆角，但 `setApplicationIconImage` 运行时图标和 Windows `.ico` 都不走蒙版；改图标先改 `app-icon.png` 母版，再用 4x 超采样圆角蒙版出 PNG，icns 走 `iconutil`、ico 走 PIL 多尺寸重生成。
 - 发版：`scripts/release.sh x.y.z [--skip-test] [--watch]`——校验（main、工作树干净、三段数字版本、tag 不冲突）→ 本地 `dotnet test` → 改 csproj `<Version>` 提交 → 打 `v` tag push → CI（dotnet-desktop.yml）测试 + macOS/Windows/Linux 打包（Windows 另出 Inno Setup 安装包，共 5 个产物）+ 建 GitHub Release；`--watch` 轮询 CI 并核对 Release 产物（需 `gh` 已登录）。Agent 收到「发版 x.y.z」即跑该脚本（带 `--watch`），成功后向用户汇报 Release 链接与产物清单；失败按脚本 stderr 处理，CI 红则看 Actions 日志，修复后删远端/本地 tag（`git push origin :refs/tags/vX`、`git tag -d vX`）再重跑。tag 与 csproj 版本不一致会被 workflow 拒绝，重发同版本必须先删 tag。
@@ -23,6 +23,13 @@ lxfater/inpaint-web 的 C# / .NET 10 + Avalonia 桌面重写：MI-GAN 图片修�
 - Real-ESRGAN（`realesrgan-x4.onnx`）：输入 float 0..1 RGB CHW；64×64 tile、四周外扩 6px 重叠、越界钳制到边缘像素，核心区 52×52，输出 ×4。
 - 位图侧统一 Bgra8888 紧凑布局，模型侧 RGB CHW（平面式）；转换全部在 Core。
 - **超大图性能约束**：像素级大块工作（`new Bitmap(stream)` 解码、`ExtractBgra`、CHW 前后处理、`CreateBitmap`）一律放后台（`Task.Run`），UI 线程只留属性赋值与缩略图绘制；修复/超分有像素上限 guard（VM `InpaintMaxPixels`/`UpscaleMaxPixels`，超限明确报错不 OOM）；超分输出超 1 亿像素（VM `UpscaleConfirmPixels`，按 ×4 后输出计）时先经 VM `ConfirmUpscaleAsync` 回调弹模态确认窗 `ConfirmWindow`（默认焦点「取消」，未接线按取消处理）再执行；历史裁剪除 `MaxHistory` 节点数外还有总字节预算（VM `HistoryByteBudget`，超大图自动收缩保留张数）；空闲悬停不触发画布整帧重绘（画笔光标环不可见时跳过 `InvalidateVisual`）。
+
+## 导出压缩（Services/ImageExporter）
+
+- 保存=导出：工具栏「导出…」/历史节点右键先弹模态 `ExportWindow`（格式 PNG/JPEG/WebP + 质量滑块 + **实时预估大小** + **1:1 取样预览**），确认后经 VM `ExportDialogProvider` 把 `ExportChoice`（含**编码好的字节**）带回，文件选择器按所选格式过滤扩展名。预估即编码——`ExportViewModel` 防抖 400ms 后整图编码一次，确认时参数命中缓存直接落盘不再重复编码；缓存是**单条目**（大图每份编码数 MB，不按质量档囤积），收益场景是估算在跑时切回上一组参数秒恢复，迟到的过期结果靠 generation 代数检查丢弃。
+- **1:1 取样预览 + 全图导航器**：预估完成后把真实字节解码回位图（`PreviewResult`，先换引用再 Dispose 旧图，Detach 清空），预览=落盘内容（JPEG 白底合成也如实可见）。交互：上窗 1:1 取样——按住=切原图对比、拖动=微调取样中心（`CalculateCropTranslate` 钳制到图像边缘、图小于视口整体居中）；下窗全图导航器（原图渲染、打开即有内容）——高亮框标出取样区在整图的位置，按下即跳转、拖动跟随（`CalculateThumbLayout` 信箱布局不放大超过 1:1、`ThumbPointToImage` 坐标映射）。**四条 Avalonia 渲染坑（探针实测）**：① Image 控件自身会裁掉超出 Bounds 的绘制，必须设 Width/Height=位图像素尺寸让其铺满，再由 Border 的**显式 `Clip`**（RectangleGeometry）裁出取样窗；② `ClipToBounds` 不行——它的裁剪发生在子项自身坐标系、会跟着 RenderTransform 一起移动，负平移直接把可见区移没；③ 显式尺寸的子项在 Panel 里默认**居中**摆放（Stretch 对齐 + 显式宽高 → 居中），会叠加 ((槽宽-宽)/2, …) 的基底偏移把平移后的内容推出视口，须 Left/Top 对齐；④ `Stretch.Fill` + 显式像素尺寸强制 1 图像像素=1 DIP 的真 1:1，不受文件 DPI 元数据影响。
+- 编码器用 Avalonia 自带的 Skia（`SKImage.Encode`，libpng/libjpeg-turbo/libwebp），**零新增原生依赖**；SkiaSharp 经 Avalonia 传递引用，勿再显式加包。**alpha 约定（探针实测）**：Avalonia 解码的位图缓冲是**预乘 alpha**（且 PNG 源解码为 Rgba8888，`ImageExporter.ExtractBgra` 统一转紧凑 BGRA 并交换红蓝），编码时按 `SKAlphaType.Premul` 声明；历史树新生成的位图全不透明，两者一致。JPEG 无 alpha：编码前把非不透明像素合成到白底（预乘公式 `c + 255 - a`，半透明红叠白底=粉色不是纯红），全不透明走零拷贝快路径；PNG/WebP 保留 alpha。质量参数 PNG 忽略（键里也不参与，来回调质量命中同一份缓存）。
+- 无 UI 环境（单测/CI）时 `_storage` 为 null 直接返回；`ExportDialogProvider` 未接线视为取消（安全兜底，同 `ConfirmUpscaleAsync` 先例）。`OpenWriteAsync` 不截断旧文件，覆盖前须 `SetLength(0)`。大图 WebP 编码要数秒——预估全程后台可取消，状态行「估算中…」；`EstimateExecutor` 替身供单测注入（真实编码语义另测），`EstimateDebounce` 置零 + `await vm.EstimateTask` 是测试的标准等待姿势。
 
 ## 推理与模型缓存
 
@@ -42,7 +49,7 @@ lxfater/inpaint-web 的 C# / .NET 10 + Avalonia 桌面重写：MI-GAN 图片修�
 - 语言切换 = `Translations.SetLanguage` 逐属性 raise PropertyChanged（静态字段按声明顺序初始化，**词典必须先于 `Instance`**）；StatusText 等瞬态文本与历史节点标题不回溯刷新（无瞬态状态时的初始提示经 VM 派生属性 StatusDisplay 随语言刷新）。测试断言中文字符串的类须在构造函数固定 `SetLanguage(SimplifiedChinese)`，且程序集已禁用集合并行（Translations 是进程级单例）；切语言会牵动 headless App 启动时创建的 MainWindow 绑定，相关测试须走 `[AvaloniaFact]`（UI 线程），普通 `[Fact]` 里切语言会跨线程崩溃。
 - App 层 MVVM 用 CommunityToolkit.Mvvm 源生成器：`[ObservableProperty]`、`[RelayCommand(CanExecute=...)]` + `NotifyCanExecuteChangedFor`；命令可用性统一由 `IsBusy` gate。
 - 耗时工作 `Task.Run` 下放线程池，UI 更新走 `IProgress<T>`；用户可见错误写入 `StatusText`，不向 UI 抛异常。
-- 像素级位图访问用 unsafe 指针（App 已开 AllowUnsafeBlocks）。**WriteableBitmap 有 RowBytes stride，逐行拷贝必须用它**，参见 `MainWindowViewModel.CreateBitmap/ExtractBgra`、`ImageEditorControl.PaintDisc`；Core 的转换函数则假设紧凑无 padding。
+- 像素级位图访问用 unsafe 指针（App 已开 AllowUnsafeBlocks）。**WriteableBitmap 有 RowBytes stride，逐行拷贝必须用它**，参见 `MainWindowViewModel.CreateBitmap`、`ImageExporter.ExtractBgra`、`ImageEditorControl.PaintDisc`；Core 的转换函数则假设紧凑无 padding。
 - Bitmap 生命周期：生成历史是 git 式分叉树（`ImageHistoryNode`，撤销后生成即分叉；撤销/回到原图=在树上移动当前节点），节点里的 Bitmap/Thumbnail 由 ViewModel 统一 Dispose（`AdoptBitmap`/`PushHistory`/`PruneHistory`），新增产生位图的路径注意别泄漏；节点上限默认 25（`AppSettings.MaxHistory`，设置界面可调），超限优先丢弃最旧的非当前分支，原图（根）永不丢弃。
 - 历史面板是整图自绘的竖向 git Graph（`HistoryGraphView`，无列表）：车道为纵向列（0=原图主干），行按创建时间从上往下；**第一子节点延续父车道，基于中间节点生成的新子节点开右侧新车道（原车道不动）**，车道序按分叉发生顺序分配。布局字段（LaneIndex/RowIndex）由 `RebuildHistory` 统一重算，控件只负责绘制/命中/右键菜单。
 - XAML 绑定默认编译期检查（`AvaloniaUseCompiledBindingsByDefault`），模板内跨层取 DataContext 用 `$parent[ItemsControl].((vm:MainWindowViewModel)DataContext)` 写法。Avalonia 12 主题只给 Slider/ScrollBar 等容器内嵌 Thumb 模板，**裸 `<Thumb>` 无默认模板→无可视子树→命中测试/拖拽全失效**，须自备 ControlTemplate（见 `MainWindow.axaml` 的 HistoryResizeThumb）。

@@ -1,0 +1,85 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:Inpaint.App.Localization"
+        xmlns:vm="using:Inpaint.App.ViewModels"
+        x:Class="Inpaint.App.ExportWindow"
+        x:DataType="vm:ExportViewModel"
+        Title="{Binding ExportTitle, Source={x:Static loc:Translations.Instance}}"
+        Width="620" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+    <!-- 模态导出对话框：左侧 1:1 取样预览（解码自预估字节 = 落盘内容，按住对比原图、拖动移动取样），
+         右侧格式 / 质量 / 预估与按钮 -->
+    <Grid Margin="16" ColumnDefinitions="300,*" ColumnSpacing="16">
+        <StackPanel Grid.Column="0" Spacing="4">
+            <Border x:Name="PreviewViewport" Width="300" Height="200" ClipToBounds="True"
+                    Background="#18000000" BorderBrush="#20000000" BorderThickness="1" Cursor="SizeAll"
+                    PointerPressed="OnPreviewPointerPressed"
+                    PointerMoved="OnPreviewPointerMoved"
+                    PointerReleased="OnPreviewPointerReleased">
+                <Panel>
+                    <!-- Left/Top 对齐：显式尺寸的 Image 在 Panel 里默认居中，会叠加基底偏移把取样窗内容推出视口 -->
+                    <Image x:Name="PreviewImage" Stretch="Fill" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+                    <TextBlock x:Name="PreviewPlaceholder" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Foreground="Gray" TextAlignment="Center" MaxWidth="260" TextWrapping="Wrap"
+                               Text="{Binding PreviewPending, Source={x:Static loc:Translations.Instance}}"/>
+                </Panel>
+            </Border>
+            <!-- 全图导航器：显示取样区在整图中的位置，拖动直接跳转（全黑局部也不至于迷失） -->
+            <Border x:Name="ThumbViewport" Width="300" Height="120" Background="#18000000" Cursor="Hand"
+                    BorderBrush="#20000000" BorderThickness="1"
+                    PointerPressed="OnThumbPointerPressed"
+                    PointerMoved="OnThumbPointerMoved"
+                    PointerReleased="OnThumbPointerReleased">
+                <Panel>
+                    <Image x:Name="ThumbImage" Stretch="Uniform"/>
+                    <Border x:Name="ThumbSampleRect" Width="0" Height="0" HorizontalAlignment="Left" VerticalAlignment="Top"
+                            BorderBrush="#FF0067C0" BorderThickness="2" CornerRadius="2" Background="#100067C0"/>
+                </Panel>
+            </Border>
+            <TextBlock FontSize="11" Foreground="Gray" TextWrapping="Wrap" MaxWidth="300"
+                       Text="{Binding PreviewHint, Source={x:Static loc:Translations.Instance}}"/>
+        </StackPanel>
+
+        <StackPanel Grid.Column="1" Spacing="12">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock VerticalAlignment="Center"
+                           Text="{Binding FormatLabel, Source={x:Static loc:Translations.Instance}}"/>
+                <ComboBox MinWidth="150" HorizontalContentAlignment="Stretch"
+                          ItemsSource="{Binding FormatOptions}" SelectedIndex="{Binding FormatIndex}">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Label}"/>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </StackPanel>
+
+            <!-- PNG 无损，质量区块随之隐藏 -->
+            <StackPanel IsVisible="{Binding IsQualityVisible}" Spacing="4">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock VerticalAlignment="Center"
+                               Text="{Binding QualityLabel, Source={x:Static loc:Translations.Instance}}"/>
+                    <TextBlock Grid.Column="1" VerticalAlignment="Center" Width="36" TextAlignment="Right"
+                               Text="{Binding Quality}"/>
+                </Grid>
+                <Slider Minimum="1" Maximum="100" Value="{Binding QualitySlider}"/>
+            </StackPanel>
+
+            <!-- 预估大小：整图后台编码得出（与最终保存字节一致），估算期间转圈 -->
+            <Grid ColumnDefinitions="Auto,*,Auto" MinHeight="20">
+                <ProgressBar Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,8,0"
+                             IsIndeterminate="True" IsVisible="{Binding IsEstimating}"/>
+                <TextBlock Grid.Column="1" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                           Text="{Binding EstimateStatus}"/>
+            </Grid>
+
+            <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="8">
+                <Button MinWidth="84" IsDefault="True"
+                        Command="{Binding ConfirmCommand}"
+                        Content="{Binding ConfirmSave, Source={x:Static loc:Translations.Instance}}"/>
+                <Button Grid.Column="1" MinWidth="84" IsCancel="True" Click="OnCancelClick"
+                        Content="{Binding Cancel, Source={x:Static loc:Translations.Instance}}"/>
+            </Grid>
+        </StackPanel>
+    </Grid>
+</Window>

@@ -25,7 +25,7 @@ public sealed class Translations : INotifyPropertyChanged
     {
         [nameof(AppTitle)] = "Inpaint — 图片修复与高清化",
         [nameof(Open)] = "打开图片…",
-        [nameof(Save)] = "保存 PNG",
+        [nameof(Save)] = "导出…",
         [nameof(Undo)] = "撤销",
         [nameof(ResetToOriginal)] = "回到原图",
         [nameof(History)] = "历史",
@@ -80,8 +80,20 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(PickerSaveTitle)] = "保存图片",
         [nameof(FileTypeImages)] = "图片",
         [nameof(PngFileType)] = "PNG 图片",
+        [nameof(JpegFileType)] = "JPEG 图片",
+        [nameof(WebPFileType)] = "WebP 图片",
         [nameof(CopyImage)] = "复制图片",
-        [nameof(DownloadPng)] = "下载 PNG",
+        [nameof(DownloadPng)] = "导出…",
+        [nameof(ExportTitle)] = "导出图片",
+        [nameof(FormatLabel)] = "格式",
+        [nameof(QualityLabel)] = "质量",
+        [nameof(EstimatedSizeFormat)] = "预估大小：约 {0}",
+        [nameof(Estimating)] = "估算中…",
+        [nameof(PreviewPending)] = "预览生成中…",
+        [nameof(PreviewHint)] = "上：1:1 取样（即落盘内容），按住对比原图；下：全图定位，拖动移动取样区",
+        [nameof(ExportFailed)] = "导出失败：{0}",
+        [nameof(ConfirmSave)] = "保存",
+        [nameof(Cancel)] = "取消",
         [nameof(SettingsTitle)] = "设置",
         [nameof(SectionGeneral)] = "通用",
         [nameof(ThemeLabel)] = "主题",
@@ -141,7 +153,7 @@ public sealed class Translations : INotifyPropertyChanged
     {
         [nameof(AppTitle)] = "Inpaint — Inpainting & Upscaling",
         [nameof(Open)] = "Open Image…",
-        [nameof(Save)] = "Save PNG",
+        [nameof(Save)] = "Export…",
         [nameof(Undo)] = "Undo",
         [nameof(ResetToOriginal)] = "Reset to Original",
         [nameof(History)] = "History",
@@ -198,8 +210,20 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(PickerSaveTitle)] = "Save Image",
         [nameof(FileTypeImages)] = "Image",
         [nameof(PngFileType)] = "PNG Image",
+        [nameof(JpegFileType)] = "JPEG Image",
+        [nameof(WebPFileType)] = "WebP Image",
         [nameof(CopyImage)] = "Copy Image",
-        [nameof(DownloadPng)] = "Download PNG",
+        [nameof(DownloadPng)] = "Export…",
+        [nameof(ExportTitle)] = "Export Image",
+        [nameof(FormatLabel)] = "Format",
+        [nameof(QualityLabel)] = "Quality",
+        [nameof(EstimatedSizeFormat)] = "Estimated size: ~{0}",
+        [nameof(Estimating)] = "Estimating…",
+        [nameof(PreviewPending)] = "Generating preview…",
+        [nameof(PreviewHint)] = "Top: 1:1 sample (exactly what gets saved) — hold to compare with the original; bottom: whole-image map — drag to move the sample area",
+        [nameof(ExportFailed)] = "Export failed: {0}",
+        [nameof(ConfirmSave)] = "Save",
+        [nameof(Cancel)] = "Cancel",
         [nameof(SettingsTitle)] = "Settings",
         [nameof(SectionGeneral)] = "General",
         [nameof(ThemeLabel)] = "Theme",
@@ -374,11 +398,28 @@ public sealed class Translations : INotifyPropertyChanged
     public string PickerSaveTitle => Get();
     public string FileTypeImages => Get();
     public string PngFileType => Get();
+    public string JpegFileType => Get();
+    public string WebPFileType => Get();
 
     // ---- 历史节点右键菜单 ----
 
     public string CopyImage => Get();
     public string DownloadPng => Get();
+
+    // ---- 导出对话框 ----
+
+    public string ExportTitle => Get();
+    public string FormatLabel => Get();
+    public string QualityLabel => Get();
+    /// <summary>预估状态行（{0} 为人读字节数，如 1.2 MB）。</summary>
+    public string EstimatedSizeFormat => Get();
+    public string Estimating => Get();
+    /// <summary>1:1 取样预览区：占位与操作提示。</summary>
+    public string PreviewPending => Get();
+    public string PreviewHint => Get();
+    public string ExportFailed => Get();
+    public string ConfirmSave => Get();
+    public string Cancel => Get();
 
     // ---- 设置窗口 ----
 

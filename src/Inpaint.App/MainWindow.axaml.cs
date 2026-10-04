@@ -34,6 +34,10 @@ public partial class MainWindow : Window
         // 超大超分二次确认：VM 在执行前询问，这里弹模态确认窗（Owner 是 protected，只能走 ShowDialog(owner) 重载）
         viewModel.ConfirmUpscaleAsync = message => new ConfirmWindow(message).ShowDialog<bool>(this);
 
+        // 导出对话框：VM 在保存前询问格式与质量（返回的 choice 里已带编码好的字节），null = 用户取消
+        viewModel.ExportDialogProvider = (node, initial) =>
+            new ExportWindow(node.Image, initial).ShowDialog<ExportChoice?>(this);
+
         // 画布落笔后标记遮罩非空：Enter 触发修复的「已涂抹」门槛
         Editor.StrokePainted += (_, _) => viewModel.MarkMaskPainted();
         // 「松手即修复」：一笔涂完自动执行修复（开关与门槛都在 ViewModel 内把关）

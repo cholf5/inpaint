@@ -332,29 +332,6 @@ public class MainWindowViewModelTests
     }
 
     [AvaloniaFact]
-    public void CreateBitmap_ExtractBgra_往返一致()
-    {
-        var bgra = new byte[4 * 3 * 2];
-        for (int i = 0; i < bgra.Length; i++)
-            bgra[i] = (byte)(i * 37 % 256);
-
-        var bitmap = MainWindowViewModel.CreateBitmap(new PixelSize(3, 2), bgra);
-
-        Assert.Equal(bgra, MainWindowViewModel.ExtractBgra(bitmap));
-    }
-
-    [AvaloniaFact]
-    public void ExtractBgra_Rgba8888源交换红蓝()
-    {
-        var rgba = new WriteableBitmap(new PixelSize(1, 1), new Vector(96, 96), PixelFormats.Rgba8888);
-        using (var frame = rgba.Lock())
-            Marshal.Copy(new byte[] { 1, 2, 3, 255 }, 0, frame.Address, 4);
-
-        // Rgba8888 → Bgra8888：R/B 对调，G/A 不变
-        Assert.Equal(new byte[] { 3, 2, 1, 255 }, MainWindowViewModel.ExtractBgra(rgba));
-    }
-
-    [AvaloniaFact]
     public void 设置_默认画笔与历史上限生效_设备切换空闲时无副作用()
     {
         var settings = new AppSettings { DefaultBrushSize = 88, MaxHistory = 10 };

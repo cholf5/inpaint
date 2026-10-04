@@ -65,6 +65,8 @@ public partial class MainWindowViewModel : ObservableObject
     private string? _sourceDirectory;
     /// <summary>上次保存所选目录：后续保存的起始位置与重名探测目录。</summary>
     private string? _lastSaveDirectory;
+    /// <summary>上次导出设置（格式 + 质量）：再次打开导出对话框时的初始值。</summary>
+    private ExportOptions? _lastExportOptions;
     private InpaintEngine? _inpaintEngine;
     private UpscaleEngine? _upscaleEngine;
     private bool _resetUpscaleWhenIdle;
@@ -301,7 +303,7 @@ public partial class MainWindowViewModel : ObservableObject
             // 都是数百 MB 级的拷贝与循环，留在 UI 线程会在推理前后各冻结数秒
             var result = await Task.Run(() =>
             {
-                var imageChw = ImageProcessing.BgraToRgbChw(ExtractBgra(current), size.Width, size.Height);
+                var imageChw = ImageProcessing.BgraToRgbChw(ImageExporter.ExtractBgra(current), size.Width, size.Height);
                 var maskChw = ImageProcessing.MaskGrayToChw(mask.Data);
                 var output = engine!.Run(size.Width, size.Height, imageChw, maskChw);
                 return CreateBitmap(size, ImageProcessing.RgbChwToBgra(output, size.Width, size.Height));
@@ -384,7 +386,7 @@ public partial class MainWindowViewModel : ObservableObject
             // 输入转换、分块推理与输出转位图整体放后台（见 InpaintAsync 中的说明）
             var result = await Task.Run(() =>
             {
-                var chw = ImageProcessing.BgraToRgbChwF32(ExtractBgra(current), size.Width, size.Height);
+                var chw = ImageProcessing.BgraToRgbChwF32(ImageExporter.ExtractBgra(current), size.Width, size.Height);
                 var output = engine!.Run(size.Width, size.Height, chw, TileProgress());
                 return CreateBitmap(newSize, ImageProcessing.RgbChwF32ToBgra(output, newSize.Width, newSize.Height));
             });
@@ -464,7 +466,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    /// <summary>右键菜单：把任意历史图另存为 PNG。</summary>
+    /// <summary>右键菜单：导出任意历史图（经导出对话框选择格式与质量）。</summary>
     [RelayCommand(CanExecute = nameof(CanOperateNode))]
     private async Task SaveNodeAsync(ImageHistoryNode? node)
     {
@@ -480,7 +482,7 @@ public partial class MainWindowViewModel : ObservableObject
         StatusText = Translations.Instance.MaskCleared;
     }
 
-    /// <summary>工具栏「保存 PNG」：保存当前预览图。</summary>
+    /// <summary>工具栏「导出」：导出当前预览图（经导出对话框选择格式与质量）。</summary>
     [RelayCommand(CanExecute = nameof(NotBusyAndHasImage))]
     private async Task SaveAsync()
     {
@@ -655,26 +657,42 @@ public partial class MainWindowViewModel : ObservableObject
         HasMaskStrokes = false; // 新遮罩无涂抹，Enter 修复快捷键随之回到不可用
     }
 
+    /// <summary>
+    /// 导出对话框回调（MainWindow 接线为模态 ExportWindow）：入参待导出节点与上次导出设置，
+    /// 返回 null = 用户取消。未接线（无 UI 环境）时跳过对话框按默认 PNG 直接走保存流程。internal 供单测注入替身。
+    /// </summary>
+    internal Func<ImageHistoryNode, ExportOptions?, Task<ExportChoice?>>? ExportDialogProvider;
+
     private async Task SaveToPickerAsync(ImageHistoryNode node)
     {
         if (_storage is null) return;
+        // 对话框先行（预估与编码都在其中完成），取消则不弹文件选择器
+        var choice = ExportDialogProvider is { } provider
+            ? await provider(node, _lastExportOptions)
+            : null;
+        if (choice is null) return;
+        var format = choice.Format;
+        _lastExportOptions = new ExportOptions(format, choice.Quality);
+        var extension = ExtensionFor(format);
         // 起始位置与重名探测用同一目录：上次保存目录优先，退回源文件目录
         var dir = _lastSaveDirectory ?? _sourceDirectory;
         var file = await _storage.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = Translations.Instance.PickerSaveTitle,
             SuggestedStartLocation = await TryGetFolderAsync(dir),
-            SuggestedFileName = SuggestFileName(node),
-            DefaultExtension = "png",
-            FileTypeChoices = [new FilePickerFileType(Translations.Instance.PngFileType) { Patterns = ["*.png"] }],
+            SuggestedFileName = SuggestFileName(node, extension),
+            DefaultExtension = extension.TrimStart('.'),
+            FileTypeChoices = [FileTypeFor(format)],
         });
         if (file is null) return;
         if (file.Path.IsFile)
             _lastSaveDirectory = GetDirectoryNameOrNull(file.Path.LocalPath);
         try
         {
+            // 编码字节在对话框里已备好，这里只落盘（大数组 WriteAsync 走异步 I/O，不冻结 UI）
             await using var stream = await file.OpenWriteAsync();
-            node.Image.Save(stream);
+            if (stream.CanSeek) stream.SetLength(0); // OpenWriteAsync 不截断，覆盖更长的旧文件会留垃圾尾
+            await stream.WriteAsync(choice.Bytes);
             StatusText = string.Format(Translations.Instance.Saved, file.Name);
         }
         catch (Exception e)
@@ -682,6 +700,21 @@ public partial class MainWindowViewModel : ObservableObject
             StatusText = string.Format(Translations.Instance.SaveFailed, e.Message);
         }
     }
+
+    /// <summary>导出格式的标准扩展名（JPEG 用 .jpg：三大平台文件选择器兼容性最好）。internal 供单测。</summary>
+    internal static string ExtensionFor(ExportFormat format) => format switch
+    {
+        ExportFormat.Jpeg => ".jpg",
+        ExportFormat.WebP => ".webp",
+        _ => ".png",
+    };
+
+    private static FilePickerFileType FileTypeFor(ExportFormat format) => format switch
+    {
+        ExportFormat.Jpeg => new FilePickerFileType(Translations.Instance.JpegFileType) { Patterns = ["*.jpg", "*.jpeg"] },
+        ExportFormat.WebP => new FilePickerFileType(Translations.Instance.WebPFileType) { Patterns = ["*.webp"] },
+        _ => new FilePickerFileType(Translations.Instance.PngFileType) { Patterns = ["*.png"] },
+    };
 
     /// <summary>把目录路径转成选择器起始位置；目录不存在或转换失败时返回 null（不影响保存）。</summary>
     private async Task<IStorageFolder?> TryGetFolderAsync(string? dir)
@@ -706,9 +739,9 @@ public partial class MainWindowViewModel : ObservableObject
     /// <summary>
     /// 保存对话框的建议文件名：原图节点直接用源文件名，生成节点在其后追加历史标题作后缀
     /// （清理路径非法字符）；没有源文件名时原图退回时间戳兜底，保证对话框不为空。
-    /// internal 供单测。
+    /// extension 随导出格式变化，重名探测按它比对。internal 供单测。
     /// </summary>
-    internal string SuggestFileName(ImageHistoryNode node)
+    internal string SuggestFileName(ImageHistoryNode node, string extension = ".png")
     {
         string? suffix = node.Parent is null ? null : SanitizeFileName(node.Title);
         bool hasSuffix = !string.IsNullOrEmpty(suffix);
@@ -717,22 +750,22 @@ public partial class MainWindowViewModel : ObservableObject
             baseName = hasSuffix ? suffix! : $"Inpaint_{DateTime.Now:yyyyMMdd-HHmmss}";
         else
             baseName = hasSuffix ? $"{_sourceFileName}_{suffix}" : _sourceFileName;
-        return FindFreeFileName(baseName);
+        return FindFreeFileName(baseName, extension);
     }
 
     /// <summary>
     /// 已知目录（上次保存目录优先，退回源文件目录）里探测重名并自动递增 (2) (3)…，
     /// 避免反复触发系统的覆盖确认；目录未知则原样返回，由覆盖确认兜底。
     /// </summary>
-    private string FindFreeFileName(string baseName)
+    private string FindFreeFileName(string baseName, string extension)
     {
         var dir = _lastSaveDirectory ?? _sourceDirectory;
         if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return baseName;
-        if (!File.Exists(Path.Combine(dir, baseName + ".png"))) return baseName;
+        if (!File.Exists(Path.Combine(dir, baseName + extension))) return baseName;
         for (int i = 2; ; i++)
         {
             var candidate = $"{baseName}({i})";
-            if (!File.Exists(Path.Combine(dir, candidate + ".png"))) return candidate;
+            if (!File.Exists(Path.Combine(dir, candidate + extension))) return candidate;
         }
     }
 
@@ -776,32 +809,5 @@ public partial class MainWindowViewModel : ObservableObject
             }
         }
         return bitmap;
-    }
-
-    /// <summary>读出紧凑 BGRA 字节；Rgba8888 源交换红蓝。internal 供单测。</summary>
-    internal static byte[] ExtractBgra(Bitmap bitmap)
-    {
-        int width = bitmap.PixelSize.Width;
-        int height = bitmap.PixelSize.Height;
-        int stride = 4 * width;
-        var result = new byte[4L * width * height];
-        bool swap = bitmap.Format is { } format && format == PixelFormats.Rgba8888;
-        unsafe
-        {
-            fixed (byte* dst = result)
-            {
-                // 直接拷进托管数组：省去 AllocHGlobal 中转的一份全尺寸缓冲与一次整图拷贝
-                bitmap.CopyPixels(new PixelRect(0, 0, width, height), (nint)dst, result.Length, stride);
-            }
-            if (swap)
-            {
-                fixed (byte* p = result)
-                {
-                    for (int i = 0; i < result.Length; i += 4)
-                        (p[i], p[i + 2]) = (p[i + 2], p[i]);
-                }
-            }
-        }
-        return result;
     }
 }

@@ -80,7 +80,7 @@ public class HistoryGraphViewTests
 
         using var frame = window.CaptureRenderedFrame();
         Assert.NotNull(frame);
-        var pixels = MainWindowViewModel.ExtractBgra(frame);
+        var pixels = ImageExporter.ExtractBgra(frame);
         int width = frame.PixelSize.Width;
 
         // 4×4 分叉节点圆点（第 1 车道第 3 行、当前节点）：车道 1 配色（玫红 #B8437A）
