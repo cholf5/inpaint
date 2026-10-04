@@ -63,10 +63,14 @@
                         Value="{Binding BrushSize}"/>
                 <TextBlock VerticalAlignment="Center" Width="36"
                            Text="{Binding BrushSize, StringFormat='{}{0:F0}'}"/>
+                <!-- 清除涂抹无状态化：仅画布残留未处理涂抹时出现（松手即修复模式下通常只有失败后才见得到） -->
                 <Button Command="{Binding ClearMaskCommand}"
+                        IsVisible="{Binding ShowClearMask}"
                         Content="{Binding ClearMask, Source={x:Static loc:Translations.Instance}}"/>
                 <Separator/>
+                <!-- 「松手即修复」（默认开）时隐藏修复按钮 -->
                 <Button Classes="accent" Command="{Binding InpaintCommand}"
+                        IsVisible="{Binding ShowInpaintButton}"
                         Content="{Binding Inpaint, Source={x:Static loc:Translations.Instance}}"/>
                 <Button Command="{Binding UpscaleCommand}"
                         Content="{Binding Upscale, Source={x:Static loc:Translations.Instance}}"/>

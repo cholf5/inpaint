@@ -362,4 +362,106 @@ public class MainWindowViewModelTests
 
         Assert.Equal(MainWindowViewModel.MaxBrushSize, vm.BrushSize);
     }
+
+    // ---- 松手即修复（OnStrokeCommitted 经 AutoInpaintExecutor 替身断言，不跑真实推理）----
+
+    [AvaloniaFact]
+    public void OnStrokeCommitted_选项关闭_不触发修复()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        vm.Settings.InpaintOnStrokeRelease = false; // 默认开，显式关闭验证按钮式路径
+        vm.AdoptBitmap(MakeBitmap(6, 4));
+        vm.MarkMaskPainted();
+        int triggered = 0;
+        vm.AutoInpaintExecutor = () => triggered++;
+
+        vm.OnStrokeCommitted();
+
+        Assert.Equal(0, triggered);
+        Assert.True(vm.ShowInpaintButton);
+    }
+
+    [AvaloniaFact]
+    public void OnStrokeCommitted_选项开启且已涂抹_触发修复()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        vm.AdoptBitmap(MakeBitmap(6, 4));
+        vm.MarkMaskPainted();
+        vm.Settings.InpaintOnStrokeRelease = true;
+        int triggered = 0;
+        vm.AutoInpaintExecutor = () => triggered++;
+
+        vm.OnStrokeCommitted();
+
+        Assert.Equal(1, triggered);
+    }
+
+    [AvaloniaFact]
+    public void OnStrokeCommitted_选项开启但未涂抹或繁忙_不触发()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        vm.AdoptBitmap(MakeBitmap(6, 4));
+        vm.Settings.InpaintOnStrokeRelease = true;
+        int triggered = 0;
+        vm.AutoInpaintExecutor = () => triggered++;
+
+        // 未涂抹（新遮罩）：门槛与 Enter 快捷键一致
+        vm.OnStrokeCommitted();
+        Assert.Equal(0, triggered);
+
+        // 推理进行中：画布已禁涂，理论上收不到松手，仍需兜底不触发
+        vm.MarkMaskPainted();
+        vm.IsBusy = true;
+        vm.OnStrokeCommitted();
+        Assert.Equal(0, triggered);
+    }
+
+    [AvaloniaFact]
+    public void ShowInpaintButton_随松手即修复设置翻转并通知()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        Assert.False(vm.ShowInpaintButton); // 默认开：修复按钮隐藏
+        var raised = new List<string?>();
+        vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        vm.Settings.InpaintOnStrokeRelease = false;
+
+        Assert.True(vm.ShowInpaintButton);
+        Assert.Contains(nameof(MainWindowViewModel.ShowInpaintButton), raised);
+    }
+
+    [AvaloniaFact]
+    public void ShowClearMask_仅画布残留涂抹且非繁忙时显示()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        vm.AdoptBitmap(MakeBitmap(6, 4));
+        Assert.False(vm.ShowClearMask); // 无涂抹
+
+        vm.MarkMaskPainted();
+        Assert.True(vm.ShowClearMask);
+
+        // 繁忙期间遮罩属「处理中」，按钮隐藏
+        vm.IsBusy = true;
+        Assert.False(vm.ShowClearMask);
+        vm.IsBusy = false;
+        Assert.True(vm.ShowClearMask);
+
+        // 清除（或修复成功）后遮罩清空，按钮消失
+        vm.ClearMaskCommand.Execute(null);
+        Assert.False(vm.ShowClearMask);
+    }
+
+    [AvaloniaFact]
+    public void AdoptBitmap_加载提示语随松手即修复设置切换()
+    {
+        var vm = new MainWindowViewModel(null, null); // 默认开
+        vm.AdoptBitmap(MakeBitmap(6, 4));
+        Assert.Equal("已加载 6×4，涂抹后松手即自动修复", vm.StatusText);
+
+        vm.Settings.InpaintOnStrokeRelease = false;
+        vm.AdoptBitmap(MakeBitmap(6, 4));
+        Assert.Equal(
+            string.Format(Translations.Instance.LoadedStatus, 6, 4, Translations.Instance.Inpaint),
+            vm.StatusText);
+    }
 }

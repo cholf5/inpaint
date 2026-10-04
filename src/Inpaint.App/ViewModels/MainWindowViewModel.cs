@@ -65,11 +65,13 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(ClearMaskCommand))]
     [NotifyCanExecuteChangedFor(nameof(CopyNodeCommand))]
     [NotifyCanExecuteChangedFor(nameof(SaveNodeCommand))]
+    [NotifyPropertyChangedFor(nameof(ShowClearMask))]
     private bool _isBusy;
 
     /// <summary>当前遮罩是否已有涂抹（画布落笔置位，SetMask 重建遮罩时复位）。</summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(InpaintByEnterCommand))]
+    [NotifyPropertyChangedFor(nameof(ShowClearMask))]
     private bool _hasMaskStrokes;
 
     public MainWindowViewModel(IStorageProvider? storage, IClipboard? clipboard, AppSettings? settings = null)
@@ -113,6 +115,9 @@ public partial class MainWindowViewModel : ObservableObject
                 break;
             case nameof(AppSettings.DefaultBrushSize):
                 BrushSize = Math.Clamp(_settings.DefaultBrushSize, MinBrushSize, MaxBrushSize);
+                break;
+            case nameof(AppSettings.InpaintOnStrokeRelease):
+                OnPropertyChanged(nameof(ShowInpaintButton));
                 break;
         }
     }
@@ -194,9 +199,12 @@ public partial class MainWindowViewModel : ObservableObject
         CurrentImage = bitmap;
         SetMask(bitmap.PixelSize);
         HasImage = true;
-        StatusText = string.Format(
-            Translations.Instance.LoadedStatus,
-            bitmap.PixelSize.Width, bitmap.PixelSize.Height, Translations.Instance.Inpaint);
+        // 「松手即修复」开启时工具栏没有修复按钮，提示语相应换成松手触发
+        StatusText = _settings.InpaintOnStrokeRelease
+            ? string.Format(Translations.Instance.LoadedStatusAuto, bitmap.PixelSize.Width, bitmap.PixelSize.Height)
+            : string.Format(
+                Translations.Instance.LoadedStatus,
+                bitmap.PixelSize.Width, bitmap.PixelSize.Height, Translations.Instance.Inpaint);
         UndoCommand.NotifyCanExecuteChanged();
     }
 
@@ -250,6 +258,29 @@ public partial class MainWindowViewModel : ObservableObject
 
     /// <summary>画布落下新笔触（由 MainWindow 接线 ImageEditorControl.StrokePainted）。internal 供单测。</summary>
     internal void MarkMaskPainted() => HasMaskStrokes = true;
+
+    /// <summary>「松手即修复」（默认开）时隐藏工具栏修复按钮，回到按钮式工作流。</summary>
+    public bool ShowInpaintButton => !_settings.InpaintOnStrokeRelease;
+
+    /// <summary>
+    /// 清除涂抹无状态化：仅画布残留未处理涂抹时显示。松手即修复模式下推理成功即清遮罩，
+    /// 按钮自然消失，只有失败（遮罩滞留）才浮现作逃生门；繁忙期间遮罩属「处理中」而非「悬停」，一并隐藏。
+    /// </summary>
+    public bool ShowClearMask => HasMaskStrokes && !IsBusy;
+
+    /// <summary>松手自动修复的执行动作；测试注入替身避免真实推理，null 走 InpaintByEnterCommand。internal 供单测。</summary>
+    internal Action? AutoInpaintExecutor;
+
+    /// <summary>
+    /// 一笔涂抹结束（由 MainWindow 接线 ImageEditorControl.StrokeCommitted）：
+    /// 「松手即修复」开启且修复可用（非繁忙、有图、已涂抹，与 Enter 快捷键同门槛）时自动执行。internal 供单测。
+    /// </summary>
+    internal void OnStrokeCommitted()
+    {
+        if (!_settings.InpaintOnStrokeRelease || !InpaintByEnterCommand.CanExecute(null)) return;
+        if (AutoInpaintExecutor is { } executor) executor();
+        else InpaintByEnterCommand.Execute(null);
+    }
 
     // ---- 高清放大 ----
 

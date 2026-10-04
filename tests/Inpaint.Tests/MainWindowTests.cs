@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -90,13 +91,11 @@ public class MainWindowTests
             vm.AdoptBitmap(new WriteableBitmap(new PixelSize(6, 4), new Vector(96, 96), PixelFormats.Bgra8888));
             Assert.False(vm.InpaintByEnterCommand.CanExecute(null));
 
-            // 未涂抹按下 Enter：不触发修复（不进入忙碌，状态停在「已加载…」）
+            // 未涂抹按下 Enter：不触发修复（不进入忙碌，状态停在加载提示，默认为松手即修复文案）
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
             Dispatcher.UIThread.RunJobs();
             Assert.False(vm.IsBusy);
-            Assert.Equal(
-                string.Format(Translations.Instance.LoadedStatus, 6, 4, Translations.Instance.Inpaint),
-                vm.StatusText);
+            Assert.Equal(string.Format(Translations.Instance.LoadedStatusAuto, 6, 4), vm.StatusText);
         }
         finally
         {
@@ -124,6 +123,86 @@ public class MainWindowTests
 
             Assert.True(vm.HasMaskStrokes);
             Assert.True(vm.InpaintByEnterCommand.CanExecute(null));
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public void 松手即修复_默认开启自动执行_关闭后不触发()
+    {
+        var window = new MainWindow();
+        window.Show();
+        try
+        {
+            var vm = Assert.IsType<MainWindowViewModel>(window.DataContext);
+            vm.AdoptBitmap(new WriteableBitmap(new PixelSize(6, 4), new Vector(96, 96), PixelFormats.Bgra8888));
+            int triggered = 0;
+            vm.AutoInpaintExecutor = () => triggered++; // 替身避免真实推理/模型下载
+
+            var editor = window.GetVisualDescendants().OfType<ImageEditorControl>().Single();
+            window.CaptureRenderedFrame();
+            var center = editor.TranslatePoint(
+                new Point(editor.Bounds.Width / 2, editor.Bounds.Height / 2), window)!.Value;
+
+            // 默认开启：松手即触发
+            window.MouseDown(center, MouseButton.Left);
+            window.MouseUp(center, MouseButton.Left, RawInputModifiers.None);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(1, triggered);
+
+            // 设置窗口实时改开关（共享单实例设置）：关闭后松手不触发
+            vm.Settings.InpaintOnStrokeRelease = false;
+            window.MouseDown(center, MouseButton.Left);
+            window.MouseUp(center, MouseButton.Left, RawInputModifiers.None);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(1, triggered);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public void 清除涂抹_仅画布残留涂抹时显示_修复按钮按开关隐藏()
+    {
+        var window = new MainWindow();
+        window.Show();
+        try
+        {
+            var vm = Assert.IsType<MainWindowViewModel>(window.DataContext);
+            Assert.True(vm.Settings.InpaintOnStrokeRelease); // 默认开
+            vm.AutoInpaintExecutor = () => { }; // 松手触发走替身，避免真实推理
+            var inpaintButton = window.GetVisualDescendants().OfType<Button>()
+                .Single(b => b.Command == vm.InpaintCommand);
+            var clearButton = window.GetVisualDescendants().OfType<Button>()
+                .Single(b => b.Command == vm.ClearMaskCommand);
+
+            vm.AdoptBitmap(new WriteableBitmap(new PixelSize(6, 4), new Vector(96, 96), PixelFormats.Bgra8888));
+            Dispatcher.UIThread.RunJobs();
+            // 修复按钮按开关隐藏；无涂抹时清除按钮也不显示
+            Assert.False(inpaintButton.IsVisible);
+            Assert.False(clearButton.IsVisible);
+
+            // 真实指针涂抹后遮罩残留：清除按钮出现
+            var editor = window.GetVisualDescendants().OfType<ImageEditorControl>().Single();
+            window.CaptureRenderedFrame();
+            var center = editor.TranslatePoint(
+                new Point(editor.Bounds.Width / 2, editor.Bounds.Height / 2), window)!.Value;
+            window.MouseDown(center, MouseButton.Left);
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(clearButton.IsVisible);
+
+            // 松手（自动修复替身消费遮罩前遮罩仍在）→ 清除后按钮消失；修复成功路径同理
+            window.MouseUp(center, MouseButton.Left, RawInputModifiers.None);
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(clearButton.IsVisible);
+            vm.ClearMaskCommand.Execute(null);
+            Dispatcher.UIThread.RunJobs();
+            Assert.False(clearButton.IsVisible);
         }
         finally
         {

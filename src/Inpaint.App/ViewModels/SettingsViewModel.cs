@@ -104,6 +104,13 @@ public sealed partial class SettingsViewModel : ObservableObject
         set => _settings.CheckUpdateOnStartup = value;
     }
 
+    /// <summary>涂抹松手后立即修复；实时生效，主窗口经设置订阅同步隐藏修复按钮。</summary>
+    public bool InpaintOnStrokeRelease
+    {
+        get => _settings.InpaintOnStrokeRelease;
+        set => _settings.InpaintOnStrokeRelease = value;
+    }
+
     // ---- 检查更新（「关于」页）----
 
     /// <summary>检查进行中：期间禁用检查按钮。瞬态，不随语言切换刷新。</summary>

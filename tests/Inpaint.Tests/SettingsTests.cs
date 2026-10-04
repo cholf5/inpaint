@@ -31,6 +31,7 @@ public class SettingsTests
                 DefaultBrushSize = 88,
                 MaxHistory = 40,
                 CheckUpdateOnStartup = true,
+                InpaintOnStrokeRelease = false, // 默认已开，存非默认方向验证往返
             };
             SettingsService.Save(settings, path);
 
@@ -42,6 +43,7 @@ public class SettingsTests
             Assert.Equal(88, loaded.DefaultBrushSize);
             Assert.Equal(40, loaded.MaxHistory);
             Assert.True(loaded.CheckUpdateOnStartup);
+            Assert.False(loaded.InpaintOnStrokeRelease);
         }
         finally
         {
@@ -59,6 +61,8 @@ public class SettingsTests
         Assert.Equal(25, missing.MaxHistory);
         // 启动检查更新默认关：纯本地应用，启动联网必须 opt-in
         Assert.False(missing.CheckUpdateOnStartup);
+        // 涂抹松手立即修复默认开：与 Web 版手感一致
+        Assert.True(missing.InpaintOnStrokeRelease);
 
         var corruptPath = TempPath(".json");
         File.WriteAllText(corruptPath, "{ not json");
@@ -161,6 +165,8 @@ public class SettingsTests
         Assert.Equal(40, settings.MaxHistory);
         vm.CheckUpdateOnStartup = true;
         Assert.True(settings.CheckUpdateOnStartup);
+        vm.InpaintOnStrokeRelease = true;
+        Assert.True(settings.InpaintOnStrokeRelease);
 
         // ItemsSource 重建瞬间 ComboBox 可能回写 -1（无选中），应被忽略
         vm.ThemeIndex = -1;

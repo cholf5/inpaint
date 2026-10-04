@@ -41,6 +41,7 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(CannotOpen)] = "无法打开图片：{0}",
         [nameof(OriginalNode)] = "原图",
         [nameof(LoadedStatus)] = "已加载 {0}×{1}，涂抹后点「{2}」",
+        [nameof(LoadedStatusAuto)] = "已加载 {0}×{1}，涂抹后松手即自动修复",
         [nameof(PreparingInpaint)] = "正在准备修复模型…",
         [nameof(Inpainting)] = "正在修复…",
         [nameof(InpaintDone)] = "修复完成（{0}×{1}）",
@@ -103,6 +104,10 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(LicenseLabel)] = "开源许可",
         [nameof(RepoLabel)] = "仓库地址",
         [nameof(CheckUpdateOnStartupLabel)] = "启动时检查更新",
+        [nameof(InpaintOnStrokeReleaseLabel)] = "涂抹后松手立即修复",
+        [nameof(InpaintOnStrokeReleaseHint)] =
+            "一笔涂抹松开鼠标即自动执行修复（与 Web 版一致）；关闭后回到点「修复涂抹区域」按钮的操作方式。" +
+            "「清除涂抹」仅在画布上残留未处理的涂抹时出现（如修复失败后），不随本开关变化。",
         [nameof(CheckUpdateHint)] =
             "默认关闭以保持纯本地使用；开启后启动时仅向 GitHub 查询最新版本号，不上传图片等任何数据。",
         [nameof(CheckUpdateButton)] = "检查更新",
@@ -134,6 +139,7 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(CannotOpen)] = "Could not open image: {0}",
         [nameof(OriginalNode)] = "Original",
         [nameof(LoadedStatus)] = "Loaded {0}×{1}; paint over unwanted areas, then click “{2}”",
+        [nameof(LoadedStatusAuto)] = "Loaded {0}×{1}; paint over unwanted areas — release to inpaint",
         [nameof(PreparingInpaint)] = "Preparing inpaint model…",
         [nameof(Inpainting)] = "Inpainting…",
         [nameof(InpaintDone)] = "Inpaint done ({0}×{1})",
@@ -200,6 +206,11 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(LicenseLabel)] = "License",
         [nameof(RepoLabel)] = "Repository",
         [nameof(CheckUpdateOnStartupLabel)] = "Check for updates at startup",
+        [nameof(InpaintOnStrokeReleaseLabel)] = "Inpaint immediately on stroke release",
+        [nameof(InpaintOnStrokeReleaseHint)] =
+            "Release the mouse after a stroke to inpaint right away (as in the web version); turn off to go " +
+            "back to clicking the “Inpaint Painted Areas” button. “Clear Mask” appears only while unprocessed " +
+            "paint remains on the canvas (e.g. after a failure), regardless of this switch.",
         [nameof(CheckUpdateHint)] =
             "Off by default to keep the app fully local; when enabled, the launch check only asks " +
             "GitHub for the latest version number — no images or other data are uploaded.",
@@ -282,6 +293,7 @@ public sealed class Translations : INotifyPropertyChanged
     public string CannotOpen => Get();
     public string OriginalNode => Get();
     public string LoadedStatus => Get();
+    public string LoadedStatusAuto => Get();
     public string PreparingInpaint => Get();
     public string Inpainting => Get();
     public string InpaintDone => Get();
@@ -348,6 +360,8 @@ public sealed class Translations : INotifyPropertyChanged
     public string AuthorName => Get();
     public string LicenseLabel => Get();
     public string RepoLabel => Get();
+    public string InpaintOnStrokeReleaseLabel => Get();
+    public string InpaintOnStrokeReleaseHint => Get();
 
     // ---- 检查更新 ----
 

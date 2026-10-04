@@ -30,6 +30,9 @@ public class ImageEditorControl : Control
     /// <summary>左键在画布上落下新笔触后触发；ViewModel 借此感知遮罩已非空（Enter 修复快捷键的门槛）。</summary>
     public event EventHandler? StrokePainted;
 
+    /// <summary>一笔涂抹结束（松开左键）后触发；「松手即修复」选项开启时据此自动执行修复。</summary>
+    public event EventHandler? StrokeCommitted;
+
     static ImageEditorControl()
     {
         AffectsRender<ImageEditorControl>(SourceProperty);
@@ -182,6 +185,8 @@ public class ImageEditorControl : Control
             _stroking = false;
             _hasLast = false;
             e.Pointer.Capture(null);
+            // 只有左键开始过的笔触才会到这：右键/空闲抬起不触发
+            StrokeCommitted?.Invoke(this, EventArgs.Empty);
         }
         base.OnPointerReleased(e);
     }

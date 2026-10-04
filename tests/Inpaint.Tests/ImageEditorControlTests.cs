@@ -137,6 +137,33 @@ public class ImageEditorControlTests
     }
 
     [AvaloniaFact]
+    public void 一笔涂完松开左键_触发StrokeCommitted_其余抬起不触发()
+    {
+        var host = CreateEditor();
+        int committed = 0;
+        host.Editor.StrokeCommitted += (_, _) => committed++;
+
+        // 没有进行中的笔触就抬起：不触发
+        host.Window.MouseUp(new Point(WinW / 2.0, WinH / 2.0), MouseButton.Left, RawInputModifiers.None);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(0, committed);
+
+        // 一笔完整涂抹：按下后抬起触发一次（单击成点也算一笔）
+        host.Window.MouseDown(new Point(WinW / 2.0, WinH / 2.0), MouseButton.Left);
+        host.Window.MouseUp(new Point(WinW / 2.0, WinH / 2.0), MouseButton.Left, RawInputModifiers.None);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(1, committed);
+
+        // 右键不开始笔触，其抬起不触发
+        host.Window.MouseDown(new Point(WinW / 2.0, WinH / 2.0), MouseButton.Right);
+        host.Window.MouseUp(new Point(WinW / 2.0, WinH / 2.0), MouseButton.Right, RawInputModifiers.None);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(1, committed);
+
+        host.Window.Close();
+    }
+
+    [AvaloniaFact]
     public void 笔触越界_钳制到图片边缘()
     {
         var host = CreateEditor();

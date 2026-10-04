@@ -33,6 +33,8 @@ public partial class MainWindow : Window
 
         // 画布落笔后标记遮罩非空：Enter 触发修复的「已涂抹」门槛
         Editor.StrokePainted += (_, _) => viewModel.MarkMaskPainted();
+        // 「松手即修复」：一笔涂完自动执行修复（开关与门槛都在 ViewModel 内把关）
+        Editor.StrokeCommitted += (_, _) => viewModel.OnStrokeCommitted();
 
         // 拖动画笔大小滑块期间，指针虽在滑块上，也持续在画布上显示画笔大小预览环
         BrushSlider.AddHandler(Thumb.DragStartedEvent, (_, _) =>

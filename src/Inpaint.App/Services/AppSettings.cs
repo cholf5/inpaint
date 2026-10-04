@@ -40,4 +40,8 @@ public partial class AppSettings : ObservableObject
 
     /// <summary>启动时检查更新（查询 GitHub latest Release）。默认关：应用卖点是纯本地，启动联网必须显式 opt-in。</summary>
     [ObservableProperty] private bool _checkUpdateOnStartup = false;
+
+    /// <summary>涂抹松手后立即执行修复（与 Web 版手感一致，默认开，可关回按钮式）。开启时主界面隐藏修复按钮；
+    /// 清除涂抹按钮无状态化，仅在画布残留未处理涂抹时出现。</summary>
+    [ObservableProperty] private bool _inpaintOnStrokeRelease = true;
 }
