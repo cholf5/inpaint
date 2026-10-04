@@ -183,12 +183,13 @@ public class SettingsTests
         Assert.True(extra.Length == 0, $"覆盖词典 En 含源词典没有的键：{string.Join(", ", extra)}");
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void About_版本号与作者信息()
     {
-        // 版本取 Inpaint.App 程序集（非入口程序集，避免测试宿主版本干扰）
+        // 版本取 Inpaint.App 程序集（非入口程序集，避免测试宿主版本干扰），只验形态不写死数值
         Assert.Matches(@"^v\d+\.\d+\.\d+$", SettingsViewModel.AppVersion);
-        // 作者名中英文一致（词典仅中文源，英文回退到中文）
+        // 语言被并行测试集合共享（作者名两词典值不同：zh=周尔复 / en=Cholf），UI 线程上固定简中再断言
+        Translations.Instance.SetLanguage(AppLanguage.SimplifiedChinese);
         Assert.Equal("周尔复", Translations.Instance.AuthorName);
     }
 

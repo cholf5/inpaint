@@ -59,15 +59,13 @@ public sealed class UpdateChecker
             ? version.ToString(3)
             : "0.0.0");
 
-    private static readonly string UserAgent = $"inpaint-desktop/{CurrentVersion.TrimStart('v')}";
-
     /// <summary>相对 Location 的补全基准（CheckAsync 固定请求此地址）。</summary>
     private static readonly Uri LatestReleaseBaseUri = new(LatestReleaseUrl, UriKind.Absolute);
 
     private readonly HttpMessageHandler? _handler;
     private readonly string _currentVersion;
 
-    /// <summary>handler 供单测注入假响应；currentVersion 覆盖默认比较基准。</summary>
+    /// <summary>handler 供单测注入假响应；currentVersion 覆盖默认比较基准（User-Agent 与 UpToDate 状态行的版本随之同源，避免静态程序集版本与注入基准脱节）。</summary>
     public UpdateChecker(HttpMessageHandler? handler = null, string? currentVersion = null)
     {
         _handler = handler;
@@ -113,9 +111,12 @@ public sealed class UpdateChecker
             ? new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
             : new HttpClient(_handler, disposeHandler: false);
         client.Timeout = TimeSpan.FromSeconds(15);
-        client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
+        client.DefaultRequestHeaders.UserAgent.ParseAdd($"inpaint-desktop/{_currentVersion.TrimStart('v')}");
         return client;
     }
+
+    /// <summary>本实例的比较基准（v 前缀三段）；UpToDate 状态行展示它而非静态程序集版本，单测注入后断言才能自洽。</summary>
+    public string Version => _currentVersion;
 
     /// <summary>从 Release 页地址提取 tag 并与本地版本比较。internal 供单测。</summary>
     internal static UpdateCheckResult Evaluate(string? releaseUrl, string currentVersion)

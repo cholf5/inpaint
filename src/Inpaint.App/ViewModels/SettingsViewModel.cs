@@ -149,11 +149,13 @@ public sealed partial class SettingsViewModel : ObservableObject
         {
             UpdateCheckStatus = _t.CheckingUpdate;
             ReleaseUrl = null;
-            var result = await (UpdateCheckerFactory?.Invoke() ?? new UpdateChecker()).CheckAsync();
+            var checker = UpdateCheckerFactory?.Invoke() ?? new UpdateChecker();
+            var result = await checker.CheckAsync();
             switch (result.Outcome)
             {
                 case UpdateCheckOutcome.UpToDate:
-                    UpdateCheckStatus = string.Format(_t.UpToDateStatus, UpdateChecker.CurrentVersion);
+                    // 展示该实例的比较基准（与判定同源），生产环境即程序集版本
+                    UpdateCheckStatus = string.Format(_t.UpToDateStatus, checker.Version);
                     break;
                 case UpdateCheckOutcome.UpdateAvailable:
                     UpdateCheckStatus = string.Format(_t.UpdateAvailableStatus, result.LatestVersion);
