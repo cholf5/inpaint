@@ -34,6 +34,12 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly IClipboard? _clipboard;
     private readonly AppSettings _settings;
     private ImageHistoryNode? _root;
+    /// <summary>当前历史树源文件的基名（去扩展名），保存对话框的默认文件名由它派生。</summary>
+    private string? _sourceFileName;
+    /// <summary>源文件所在目录：首次保存的起始位置与重名探测目录。</summary>
+    private string? _sourceDirectory;
+    /// <summary>上次保存所选目录：后续保存的起始位置与重名探测目录。</summary>
+    private string? _lastSaveDirectory;
     private InpaintEngine? _inpaintEngine;
     private UpscaleEngine? _upscaleEngine;
     private bool _resetUpscaleWhenIdle;
@@ -169,20 +175,20 @@ public partial class MainWindowViewModel : ObservableObject
         });
         if (files.Count == 0) return;
         await using var stream = await files[0].OpenReadAsync();
-        await LoadFromStreamAsync(stream);
+        await LoadFromStreamAsync(stream, files[0].Path.LocalPath);
     }
 
     public async Task LoadFromPathAsync(string path)
     {
         await using var stream = File.OpenRead(path);
-        await LoadFromStreamAsync(stream);
+        await LoadFromStreamAsync(stream, path);
     }
 
-    public async Task LoadFromStreamAsync(Stream stream)
+    public async Task LoadFromStreamAsync(Stream stream, string? sourcePath = null)
     {
         try
         {
-            AdoptBitmap(new Bitmap(stream));
+            AdoptBitmap(new Bitmap(stream), sourcePath);
         }
         catch (Exception e)
         {
@@ -191,10 +197,20 @@ public partial class MainWindowViewModel : ObservableObject
         await Task.CompletedTask;
     }
 
-    /// <summary>接管一张位图作为新的编辑起点（开一棵新的历史树，旧树整体释放）。</summary>
-    public void AdoptBitmap(Bitmap bitmap)
+    /// <summary>
+    /// 接管一张位图作为新的编辑起点（开一棵新的历史树，旧树整体释放）。
+    /// sourcePath 传源文件完整路径（或裸文件名），用于推导保存建议名与保存起始目录。
+    /// </summary>
+    public void AdoptBitmap(Bitmap bitmap, string? sourcePath = null)
     {
         if (_root is not null) DisposeTree(_root);
+        // 统一在这里拆基名与目录：调用方传完整路径或裸文件名都可以，双重扩展名也不会出现
+        _sourceFileName = string.IsNullOrWhiteSpace(sourcePath)
+            ? null
+            : Path.GetFileNameWithoutExtension(sourcePath);
+        _sourceDirectory = string.IsNullOrWhiteSpace(sourcePath)
+            ? null
+            : GetDirectoryNameOrNull(sourcePath);
         var node = new ImageHistoryNode(bitmap, Translations.Instance.OriginalNode, null)
         {
             Thumbnail = CreateThumbnail(bitmap)
@@ -377,8 +393,8 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanOperateNode))]
     private async Task SaveNodeAsync(ImageHistoryNode? node)
     {
-        if (node?.Image is not { } bitmap) return;
-        await SaveToPickerAsync(bitmap);
+        if (node is null) return;
+        await SaveToPickerAsync(node);
     }
 
     [RelayCommand(CanExecute = nameof(NotBusyAndHasImage))]
@@ -392,8 +408,8 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(NotBusyAndHasImage))]
     private async Task SaveAsync()
     {
-        if (CurrentImage is not { } bitmap) return;
-        await SaveToPickerAsync(bitmap);
+        if (CurrentNode is not { } node) return;
+        await SaveToPickerAsync(node);
     }
 
     // ---- 内部工具 ----
@@ -557,26 +573,92 @@ public partial class MainWindowViewModel : ObservableObject
         HasMaskStrokes = false; // 新遮罩无涂抹，Enter 修复快捷键随之回到不可用
     }
 
-    private async Task SaveToPickerAsync(Bitmap bitmap)
+    private async Task SaveToPickerAsync(ImageHistoryNode node)
     {
         if (_storage is null) return;
+        // 起始位置与重名探测用同一目录：上次保存目录优先，退回源文件目录
+        var dir = _lastSaveDirectory ?? _sourceDirectory;
         var file = await _storage.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = Translations.Instance.PickerSaveTitle,
+            SuggestedStartLocation = await TryGetFolderAsync(dir),
+            SuggestedFileName = SuggestFileName(node),
             DefaultExtension = "png",
             FileTypeChoices = [new FilePickerFileType(Translations.Instance.PngFileType) { Patterns = ["*.png"] }],
         });
         if (file is null) return;
+        if (file.Path.IsFile)
+            _lastSaveDirectory = GetDirectoryNameOrNull(file.Path.LocalPath);
         try
         {
             await using var stream = await file.OpenWriteAsync();
-            bitmap.Save(stream);
+            node.Image.Save(stream);
             StatusText = string.Format(Translations.Instance.Saved, file.Name);
         }
         catch (Exception e)
         {
             StatusText = string.Format(Translations.Instance.SaveFailed, e.Message);
         }
+    }
+
+    /// <summary>把目录路径转成选择器起始位置；目录不存在或转换失败时返回 null（不影响保存）。</summary>
+    private async Task<IStorageFolder?> TryGetFolderAsync(string? dir)
+    {
+        if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return null;
+        try
+        {
+            return await _storage!.TryGetFolderFromPathAsync(new Uri(dir));
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string? GetDirectoryNameOrNull(string path)
+    {
+        var dir = Path.GetDirectoryName(path);
+        return string.IsNullOrEmpty(dir) ? null : dir;
+    }
+
+    /// <summary>
+    /// 保存对话框的建议文件名：原图节点直接用源文件名，生成节点在其后追加历史标题作后缀
+    /// （清理路径非法字符）；没有源文件名时原图退回时间戳兜底，保证对话框不为空。
+    /// internal 供单测。
+    /// </summary>
+    internal string SuggestFileName(ImageHistoryNode node)
+    {
+        string? suffix = node.Parent is null ? null : SanitizeFileName(node.Title);
+        bool hasSuffix = !string.IsNullOrEmpty(suffix);
+        string baseName;
+        if (string.IsNullOrEmpty(_sourceFileName))
+            baseName = hasSuffix ? suffix! : $"Inpaint_{DateTime.Now:yyyyMMdd-HHmmss}";
+        else
+            baseName = hasSuffix ? $"{_sourceFileName}_{suffix}" : _sourceFileName;
+        return FindFreeFileName(baseName);
+    }
+
+    /// <summary>
+    /// 已知目录（上次保存目录优先，退回源文件目录）里探测重名并自动递增 (2) (3)…，
+    /// 避免反复触发系统的覆盖确认；目录未知则原样返回，由覆盖确认兜底。
+    /// </summary>
+    private string FindFreeFileName(string baseName)
+    {
+        var dir = _lastSaveDirectory ?? _sourceDirectory;
+        if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return baseName;
+        if (!File.Exists(Path.Combine(dir, baseName + ".png"))) return baseName;
+        for (int i = 2; ; i++)
+        {
+            var candidate = $"{baseName}({i})";
+            if (!File.Exists(Path.Combine(dir, candidate + ".png"))) return candidate;
+        }
+    }
+
+    /// <summary>去掉文件名非法字符与空白，供拼接建议文件名使用。</summary>
+    private static string SanitizeFileName(string name)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        return new string(name.Where(c => !invalid.Contains(c) && !char.IsWhiteSpace(c)).ToArray());
     }
 
     private IProgress<double> DownloadProgress() => new Progress<double>(p =>

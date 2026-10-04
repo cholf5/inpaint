@@ -497,4 +497,104 @@ public class MainWindowViewModelTests
             string.Format(Translations.Instance.LoadedStatus, 6, 4, Translations.Instance.Inpaint),
             vm.StatusText);
     }
+
+    [AvaloniaFact]
+    public void SuggestFileName_原图用源文件名_生成节点追加历史标题()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        vm.AdoptBitmap(MakeBitmap(1, 1), "photo.jpg");
+        var root = vm.CurrentNode!;
+        Assert.Equal("photo", vm.SuggestFileName(root));
+
+        // 生成节点：源文件名 + 历史标题，标题中的空白与非法字符被清理
+        vm.PushHistory(MakeBitmap(2, 2), Translations.Instance.NodeInpaint);
+        Assert.Equal("photo_修复", vm.SuggestFileName(vm.CurrentNode!));
+
+        vm.PushHistory(MakeBitmap(8, 8), Translations.Instance.NodeUpscale);
+        Assert.Equal("photo_放大×4", vm.SuggestFileName(vm.CurrentNode!));
+
+        // 逐级撤销回原图（修复 → 原图）后保存，仍是干净的源文件名
+        vm.UndoCommand.Execute(null);
+        Assert.Equal("photo_修复", vm.SuggestFileName(vm.CurrentNode!));
+
+        vm.UndoCommand.Execute(null);
+        Assert.Equal("photo", vm.SuggestFileName(vm.CurrentNode!));
+    }
+
+    [AvaloniaFact]
+    public void SuggestFileName_无源文件名时时间戳兜底()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        vm.AdoptBitmap(MakeBitmap(1, 1));
+        Assert.StartsWith("Inpaint_", vm.SuggestFileName(vm.CurrentNode!));
+
+        vm.PushHistory(MakeBitmap(2, 2), Translations.Instance.NodeInpaint);
+        Assert.Equal("修复", vm.SuggestFileName(vm.CurrentNode!));
+    }
+
+    [AvaloniaFact]
+    public async Task LoadFromStreamAsync_源文件名传入AdoptBitmap供保存建议()
+    {
+        // 回归：生产路径（打开/拖拽）都经 LoadFromStreamAsync 载入，
+        // sourceName 必须一路传到 AdoptBitmap，不能半路丢掉
+        var vm = new MainWindowViewModel(null, null);
+        var source = MakeBitmap(2, 2);
+        using var encoded = new MemoryStream();
+        source.Save(encoded);
+        encoded.Position = 0;
+
+        await vm.LoadFromStreamAsync(encoded, "photo.jpg");
+
+        Assert.True(vm.HasImage);
+        Assert.Equal("photo", vm.SuggestFileName(vm.CurrentNode!));
+    }
+
+    [AvaloniaFact]
+    public void SuggestFileName_已知目录重名自动递增()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "inpaint-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "photo.png"), "");
+            File.WriteAllText(Path.Combine(dir, "photo_修复.png"), "");
+            var vm = new MainWindowViewModel(null, null);
+            vm.AdoptBitmap(MakeBitmap(1, 1), Path.Combine(dir, "photo.jpg"));
+
+            // 目录里已有 photo.png：原图建议名避让为 photo(2)
+            var root = vm.CurrentNode!;
+            Assert.Equal("photo(2)", vm.SuggestFileName(root));
+
+            vm.PushHistory(MakeBitmap(2, 2), Translations.Instance.NodeInpaint);
+            // photo_修复.png 已存在：递增为 photo_修复(2)，(2) 也被占时继续递增
+            var generated = vm.CurrentNode!;
+            Assert.Equal("photo_修复(2)", vm.SuggestFileName(generated));
+
+            File.WriteAllText(Path.Combine(dir, "photo_修复(2).png"), "");
+            Assert.Equal("photo_修复(3)", vm.SuggestFileName(generated));
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    [AvaloniaFact]
+    public void SuggestFileName_目录未知时不探测()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        vm.AdoptBitmap(MakeBitmap(1, 1), "photo.jpg"); // 裸文件名，无目录信息
+        Assert.Equal("photo", vm.SuggestFileName(vm.CurrentNode!));
+    }
+
+    [AvaloniaFact]
+    public void AdoptBitmap_重新载入时旧源文件名不残留()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        vm.AdoptBitmap(MakeBitmap(1, 1), "old.png");
+        Assert.Equal("old", vm.SuggestFileName(vm.CurrentNode!));
+
+        vm.AdoptBitmap(MakeBitmap(2, 2));
+        Assert.StartsWith("Inpaint_", vm.SuggestFileName(vm.CurrentNode!));
+    }
 }
