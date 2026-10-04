@@ -8,7 +8,9 @@ namespace Inpaint.App;
 /// <summary>
 /// macOS Dock 图标：`dotnet run` 裸进程没有 .app bundle，LaunchServices 读不到
 /// Info.plist 的 CFBundleIconFile，Dock 只显示通用图标。开发期在启动完成后把内嵌
-/// icns 设给 NSApplication 补上；正式包（scripts/package-macos.sh）由 bundle 提供，此设置幂等无害。
+/// icns 设给 NSApplication 补上；正式包由 bundle 提供同一素材，此设置是覆盖而非幂等。
+/// 注意运行时图标不走 macOS 26 给 bundle 图标自动加的圆角蒙版（Windows 的 .ico
+/// 同样不加工），圆角必须烤在素材里，两侧显示才一致。
 /// Avalonia 未公开该 API，经 libobjc 手发 ObjC 消息实现；Dock 图标纯外观，失败静默不阻断启动。
 /// </summary>
 internal static class MacDockIcon
