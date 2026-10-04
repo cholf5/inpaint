@@ -140,7 +140,7 @@ public class SettingsTests
         {
             t.SetLanguage(AppLanguage.English);
 
-            Assert.Equal("Export…", t.Save);
+            Assert.Equal("Save…", t.Save);
             Assert.Equal(AppLanguage.English, t.CurrentLanguage);
             // 全属性通知：绑定（含派生的 DropHint）都能刷新
             Assert.Contains(nameof(Translations.Open), raised);
@@ -148,7 +148,7 @@ public class SettingsTests
 
             t.SetLanguage(AppLanguage.SimplifiedChinese);
 
-            Assert.Equal("导出…", t.Save);
+            Assert.Equal("保存…", t.Save);
             Assert.Equal(AppLanguage.SimplifiedChinese, t.CurrentLanguage);
         }
         finally
