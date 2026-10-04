@@ -159,7 +159,13 @@ public sealed partial class SettingsViewModel : ObservableObject
                     ReleaseUrl = result.ReleaseUrl;
                     break;
                 default:
-                    UpdateCheckStatus = string.Format(_t.UpdateCheckFailed, result.Error);
+                    // HTTP 错误用友好提示（原始状态码串对用户无意义）；其余保留原始诊断消息
+                    UpdateCheckStatus = result.ErrorKind is UpdateCheckErrorKind.HttpStatus
+                        ? string.Format(_t.UpdateCheckHttpStatus, result.Error)
+                        : string.Format(_t.UpdateCheckFailed, result.Error);
+                    // 连上了但拿不到版本（HTTP 错误/拦截页/改版）时给跳转逃生门；纯断网不开（浏览器同样到不了）
+                    if (result.ErrorKind is UpdateCheckErrorKind.HttpStatus or UpdateCheckErrorKind.InvalidResponse)
+                        ReleaseUrl = UpdateChecker.ReleasesPageUrl;
                     break;
             }
         }

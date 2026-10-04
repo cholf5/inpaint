@@ -3,29 +3,29 @@ using Inpaint.App.Services;
 
 namespace Inpaint.Tests;
 
-/// <summary>检查更新的版本比较、Release JSON 解析与网络失败兜底（假 handler，不打真实网络）。</summary>
+/// <summary>检查更新的版本比较、Release 重定向解析与网络失败兜底（假 handler，不打真实网络）。</summary>
 public class UpdateCheckerTests
 {
-    internal const string LatestReleaseJson =
-        """{"tag_name":"v1.2.3","html_url":"https://github.com/cholf5/inpaint/releases/tag/v1.2.3"}""";
+    /// <summary>releases/latest 回 302 后的 Release 页地址（Location 头内容，tag 即最后一段路径）。</summary>
+    internal const string LatestReleaseUrl = "https://github.com/cholf5/inpaint/releases/tag/v1.2.3";
 
-    // ---- Evaluate（解析 + 比较）----
+    // ---- Evaluate（提取 tag + 比较）----
 
     [Fact]
     public void Evaluate_最新版更高_发现更新()
     {
-        var result = UpdateChecker.Evaluate(LatestReleaseJson, "v1.0.0");
+        var result = UpdateChecker.Evaluate(LatestReleaseUrl, "v1.0.0");
 
         Assert.Equal(UpdateCheckOutcome.UpdateAvailable, result.Outcome);
         Assert.Equal("v1.2.3", result.LatestVersion);
-        Assert.Equal("https://github.com/cholf5/inpaint/releases/tag/v1.2.3", result.ReleaseUrl);
+        Assert.Equal(LatestReleaseUrl, result.ReleaseUrl);
     }
 
     [Fact]
     public void Evaluate_本地不落后_已是最新()
     {
-        Assert.Equal(UpdateCheckOutcome.UpToDate, UpdateChecker.Evaluate(LatestReleaseJson, "v1.2.3").Outcome);
-        Assert.Equal(UpdateCheckOutcome.UpToDate, UpdateChecker.Evaluate(LatestReleaseJson, "v9.9.9").Outcome);
+        Assert.Equal(UpdateCheckOutcome.UpToDate, UpdateChecker.Evaluate(LatestReleaseUrl, "v1.2.3").Outcome);
+        Assert.Equal(UpdateCheckOutcome.UpToDate, UpdateChecker.Evaluate(LatestReleaseUrl, "v9.9.9").Outcome);
     }
 
     [Theory]
@@ -34,28 +34,29 @@ public class UpdateCheckerTests
     [InlineData("v2.0.0-beta", "v1.9.9")] // 段尾非数字后缀忽略
     public void Evaluate_版本号形态各异_仍正确识别更新(string tag, string current)
     {
-        var result = UpdateChecker.Evaluate($$"""{"tag_name":"{{tag}}"}""", current);
+        var result = UpdateChecker.Evaluate($"https://github.com/cholf5/inpaint/releases/tag/{tag}", current);
 
         Assert.Equal(UpdateCheckOutcome.UpdateAvailable, result.Outcome);
-        // 缺 html_url 时兜底到 Release 列表页
-        Assert.Equal(UpdateChecker.ReleasesPageUrl, result.ReleaseUrl);
+        Assert.Equal(tag, result.LatestVersion);
     }
 
     [Fact]
     public void Evaluate_tag无法识别版本_失败并带上原文()
     {
-        var result = UpdateChecker.Evaluate("""{"tag_name":"nightly-2024"}""", "v1.0.0");
+        var result = UpdateChecker.Evaluate("https://github.com/cholf5/inpaint/releases/tag/nightly-2024", "v1.0.0");
 
         Assert.Equal(UpdateCheckOutcome.Failed, result.Outcome);
         Assert.Equal("nightly-2024", result.Error);
+        Assert.Equal(UpdateCheckErrorKind.InvalidResponse, result.ErrorKind);
     }
 
     [Fact]
-    public void Evaluate_响应不是JSON_失败()
+    public void Evaluate_无地址_失败()
     {
-        var result = UpdateChecker.Evaluate("<html>rate limited</html>", "v1.0.0");
+        var result = UpdateChecker.Evaluate(null, "v1.0.0");
 
         Assert.Equal(UpdateCheckOutcome.Failed, result.Outcome);
+        Assert.Equal(UpdateCheckErrorKind.InvalidResponse, result.ErrorKind);
     }
 
     [Theory]
@@ -81,15 +82,29 @@ public class UpdateCheckerTests
         {
             requested = request.RequestUri;
             userAgent = request.Headers.UserAgent.ToString();
-            return JsonResponse(LatestReleaseJson);
+            return RedirectResponse(LatestReleaseUrl);
         }), currentVersion: "v1.0.0");
 
         var result = await checker.CheckAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal(new Uri(UpdateChecker.LatestReleaseApiUrl), requested);
-        // GitHub API 缺 User-Agent 直接 403，这里守住请求头
+        Assert.Equal(new Uri(UpdateChecker.LatestReleaseUrl), requested);
+        // 带上 User-Agent，降低被 GitHub 反滥用拦截的概率
         Assert.Equal("inpaint-desktop/1.0.0", userAgent);
         Assert.Equal(UpdateCheckOutcome.UpdateAvailable, result.Outcome);
+    }
+
+    [Fact]
+    public async Task CheckAsync_相对Location_按请求地址补全()
+    {
+        var checker = new UpdateChecker(new FakeHandler(_ => new HttpResponseMessage(HttpStatusCode.Found)
+        {
+            Headers = { Location = new Uri("/cholf5/inpaint/releases/tag/v1.2.3", UriKind.Relative) },
+        }), currentVersion: "v1.0.0");
+
+        var result = await checker.CheckAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(UpdateCheckOutcome.UpdateAvailable, result.Outcome);
+        Assert.Equal(LatestReleaseUrl, result.ReleaseUrl);
     }
 
     [Fact]
@@ -102,11 +117,37 @@ public class UpdateCheckerTests
 
         Assert.Equal(UpdateCheckOutcome.Failed, result.Outcome);
         Assert.Equal("offline", result.Error);
+        Assert.Equal(UpdateCheckErrorKind.Network, result.ErrorKind);
     }
 
-    internal static HttpResponseMessage JsonResponse(string json) => new(HttpStatusCode.OK)
+    [Fact]
+    public async Task CheckAsync_HTTP错误_收敛为短诊断()
     {
-        Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json"),
+        var checker = new UpdateChecker(
+            new FakeHandler(_ => new HttpResponseMessage(HttpStatusCode.Forbidden)), currentVersion: "v1.0.0");
+
+        var result = await checker.CheckAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(UpdateCheckOutcome.Failed, result.Outcome);
+        Assert.Equal("HTTP 403", result.Error);
+        Assert.Equal(UpdateCheckErrorKind.HttpStatus, result.ErrorKind);
+    }
+
+    [Fact]
+    public async Task CheckAsync_成功但无重定向_按InvalidResponse失败()
+    {
+        var checker = new UpdateChecker(
+            new FakeHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)), currentVersion: "v1.0.0");
+
+        var result = await checker.CheckAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(UpdateCheckOutcome.Failed, result.Outcome);
+        Assert.Equal(UpdateCheckErrorKind.InvalidResponse, result.ErrorKind);
+    }
+
+    internal static HttpResponseMessage RedirectResponse(string location) => new(HttpStatusCode.Found)
+    {
+        Headers = { Location = new Uri(location) },
     };
 }
 

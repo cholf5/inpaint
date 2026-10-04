@@ -152,6 +152,7 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(UpdateAvailableStatus)] = "发现新版本 {0}",
         [nameof(UpToDateStatus)] = "已是最新版本（{0}）",
         [nameof(UpdateCheckFailed)] = "检查更新失败：{0}",
+        [nameof(UpdateCheckHttpStatus)] = "无法连接 GitHub（{0}），请检查网络或代理",
         [nameof(OpenReleasePage)] = "前往 Release 页",
     };
 
@@ -294,6 +295,7 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(UpdateAvailableStatus)] = "New version available: {0}",
         [nameof(UpToDateStatus)] = "Up to date ({0})",
         [nameof(UpdateCheckFailed)] = "Update check failed: {0}",
+        [nameof(UpdateCheckHttpStatus)] = "Could not reach GitHub ({0}), check your network or proxy",
         [nameof(OpenReleasePage)] = "Open Release Page",
     };
 
@@ -491,5 +493,6 @@ public sealed class Translations : INotifyPropertyChanged
     public string UpdateAvailableStatus => Get();
     public string UpToDateStatus => Get();
     public string UpdateCheckFailed => Get();
+    public string UpdateCheckHttpStatus => Get();
     public string OpenReleasePage => Get();
 }

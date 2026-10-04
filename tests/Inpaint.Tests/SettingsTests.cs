@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
@@ -209,11 +210,11 @@ public class SettingsTests
 
     // ---- 检查更新（「关于」页命令，假 handler 不打真实网络）----
 
-    private static SettingsViewModel MakeUpdateVm(string releaseJson, string currentVersion = "v1.0.0") =>
+    private static SettingsViewModel MakeUpdateVm(string releaseUrl, string currentVersion = "v1.0.0") =>
         new(new AppSettings())
         {
             UpdateCheckerFactory = () => new UpdateChecker(
-                new FakeHandler(_ => UpdateCheckerTests.JsonResponse(releaseJson)), currentVersion),
+                new FakeHandler(_ => UpdateCheckerTests.RedirectResponse(releaseUrl)), currentVersion),
         };
 
     [AvaloniaFact]
@@ -221,7 +222,7 @@ public class SettingsTests
     {
         // 断言中文字符串，先固定语言（进程级单例，其他测试可能留在英文）
         Translations.Instance.SetLanguage(AppLanguage.SimplifiedChinese);
-        var vm = MakeUpdateVm(UpdateCheckerTests.LatestReleaseJson);
+        var vm = MakeUpdateVm(UpdateCheckerTests.LatestReleaseUrl);
 
         await vm.CheckForUpdateCommand.ExecuteAsync(null);
 
@@ -235,7 +236,7 @@ public class SettingsTests
     public async Task CheckForUpdate_已是最新_隐藏跳转链接()
     {
         Translations.Instance.SetLanguage(AppLanguage.SimplifiedChinese);
-        var vm = MakeUpdateVm("""{"tag_name":"v1.0.0"}""");
+        var vm = MakeUpdateVm("https://github.com/cholf5/inpaint/releases/tag/v1.0.0");
 
         await vm.CheckForUpdateCommand.ExecuteAsync(null);
 
@@ -256,7 +257,24 @@ public class SettingsTests
         await vm.CheckForUpdateCommand.ExecuteAsync(null);
 
         Assert.Equal("检查更新失败：offline", vm.UpdateCheckStatus);
+        // 纯断网不开跳转逃生门（浏览器同样到不了）
         Assert.Null(vm.ReleaseUrl);
+    }
+
+    [AvaloniaFact]
+    public async Task CheckForUpdate_HTTP错误_友好文案并给跳转逃生门()
+    {
+        Translations.Instance.SetLanguage(AppLanguage.SimplifiedChinese);
+        var vm = new SettingsViewModel(new AppSettings())
+        {
+            UpdateCheckerFactory = () => new UpdateChecker(
+                new FakeHandler(_ => new HttpResponseMessage(HttpStatusCode.Forbidden)), "v1.0.0"),
+        };
+
+        await vm.CheckForUpdateCommand.ExecuteAsync(null);
+
+        Assert.Equal("无法连接 GitHub（HTTP 403），请检查网络或代理", vm.UpdateCheckStatus);
+        Assert.Equal(UpdateChecker.ReleasesPageUrl, vm.ReleaseUrl);
     }
 
     [AvaloniaFact]
@@ -264,7 +282,7 @@ public class SettingsTests
     {
         // TabControl 只实例化选中页签：先切「关于」再取控件（范例同 LanguageLiveSwitchTests）
         Translations.Instance.SetLanguage(AppLanguage.SimplifiedChinese);
-        var window = new SettingsWindow { DataContext = MakeUpdateVm(UpdateCheckerTests.LatestReleaseJson) };
+        var window = new SettingsWindow { DataContext = MakeUpdateVm(UpdateCheckerTests.LatestReleaseUrl) };
         window.Show();
         try
         {
