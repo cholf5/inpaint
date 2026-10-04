@@ -79,49 +79,24 @@ public class ImageProcessingTests
     }
 
     [Fact]
-    public void MaskBgraToChw_纯白笔触为0_其余为255()
+    public void MaskGrayToChw_纯白255为0_其余为255()
     {
-        // 与 PaintDisc 的实际像素一致：不透明白色笔触 + 透明黑背景。
-        var bgra = new byte[]
-        {
-            0, 0, 0, 0,       // 透明背景 → 255（保留）
-            255, 255, 255, 255, // 不透明白 → 0（待修复）
-            0, 0, 0, 255,     // 不透明黑 → 255
-        };
+        // MaskLayer.PaintDisc 只写 0/255 两值：255 = 待修复 → 0，其余（含 0 = 保留）→ 255
+        var mask = ImageProcessing.MaskGrayToChw(new byte[] { 0, 255, 254, 1 });
 
-        var mask = ImageProcessing.MaskBgraToChw(bgra, 3, 1);
-
-        Assert.Equal(new byte[] { 255, 0, 255 }, mask);
+        Assert.Equal(new byte[] { 255, 0, 255, 255 }, mask);
     }
 
     [Fact]
-    public void MaskBgraToChw_灰度权重与OpenCV一致_仅纯白命中255()
+    public void MaskGrayToChw_输出长度为输入长度_行主序()
     {
-        // 灰度 = (R*77 + G*150 + B*29) >> 8。浅红 (B=0,G=0,R=255) 灰度 76，不算笔触。
-        Assert.Equal(255, ImageProcessing.MaskBgraToChw(new byte[] { 0, 0, 255, 255 }, 1, 1)[0]);
-        // 254 的灰：254*256>>8 = 254，仍不算笔触。
-        Assert.Equal(255, ImageProcessing.MaskBgraToChw(new byte[] { 254, 254, 254, 255 }, 1, 1)[0]);
-        // 纯白恰好 255（255*256>>8），命中待修复。
-        Assert.Equal(0, ImageProcessing.MaskBgraToChw(new byte[] { 255, 255, 255, 255 }, 1, 1)[0]);
-    }
-
-    [Fact]
-    public void MaskBgraToChw_忽略Alpha_与当前UI行为一致()
-    {
-        // PaintDisc 写入的是不透明白；透明白现实中不会出现，这里钉住 alpha 不参与灰度的现状。
-        Assert.Equal(0, ImageProcessing.MaskBgraToChw(new byte[] { 255, 255, 255, 0 }, 1, 1)[0]);
-    }
-
-    [Fact]
-    public void MaskBgraToChw_输出长度为像素数_行主序()
-    {
-        var bgra = MakeBgra(4, 3);
-        bgra[8] = 255; bgra[9] = 255; bgra[10] = 255; // 像素(2,0) 改为白
-        var mask = ImageProcessing.MaskBgraToChw(bgra, 4, 3);
+        var gray = new byte[12];
+        gray[2] = 255;
+        var mask = ImageProcessing.MaskGrayToChw(gray);
 
         Assert.Equal(12, mask.Length);
         Assert.Equal(0, mask[2]);
-        Assert.Equal(11, mask.Count(v => v == 255)); // 其余全部保留
+        Assert.Equal(11, mask.Count(v => v == 255));
     }
 
     [Fact]

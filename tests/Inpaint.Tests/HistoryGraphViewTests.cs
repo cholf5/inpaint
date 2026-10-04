@@ -116,7 +116,7 @@ public class HistoryGraphViewTests
         Dispatcher.UIThread.RunJobs();
 
         Assert.Equal(new PixelSize(2, 2), vm.CurrentImage!.PixelSize);
-        Assert.Equal(new PixelSize(2, 2), vm.MaskImage!.PixelSize);
+        Assert.Equal(new PixelSize(2, 2), vm.MaskLayer!.ImageSize);
         Assert.True(vm.HistoryNodes[1].IsCurrent);
         Assert.Same(vm.HistoryNodes[1], vm.CurrentNode);
 

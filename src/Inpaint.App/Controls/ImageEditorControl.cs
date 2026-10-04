@@ -10,7 +10,7 @@ namespace Inpaint.App.Controls;
 
 /// <summary>
 /// 图片编辑画布：默认等比适应窗口显示图片，半透明叠加遮罩层，
-/// 左键拖动以图片分辨率把白色圆头笔触写入遮罩位图，并绘制画笔光标环。
+/// 左键拖动以图片分辨率把白色圆头笔触写入遮罩层（权威数据 + 低分辨率 overlay），并绘制画笔光标环。
 /// 视图（缩放/平移）与图片数据完全分离，不进入生成历史：
 /// ⌘/Ctrl/Alt+滚轮与触控板捏合以光标为锚点缩放，空格按住或中键拖拽平移；
 /// 画笔为屏幕像素恒定语义（放大视图即提高涂抹精度），繁忙期间缩放平移仍可用。
@@ -20,8 +20,8 @@ public class ImageEditorControl : Control
     public static readonly StyledProperty<IImage?> SourceProperty =
         AvaloniaProperty.Register<ImageEditorControl, IImage?>(nameof(Source));
 
-    public static readonly StyledProperty<WriteableBitmap?> MaskProperty =
-        AvaloniaProperty.Register<ImageEditorControl, WriteableBitmap?>(nameof(Mask));
+    public static readonly StyledProperty<MaskLayer?> MaskProperty =
+        AvaloniaProperty.Register<ImageEditorControl, MaskLayer?>(nameof(Mask));
 
     public static readonly StyledProperty<double> BrushSizeProperty =
         AvaloniaProperty.Register<ImageEditorControl, double>(nameof(BrushSize), 40.0);
@@ -84,7 +84,7 @@ public class ImageEditorControl : Control
         set => SetValue(SourceProperty, value);
     }
 
-    public WriteableBitmap? Mask
+    public MaskLayer? Mask
     {
         get => GetValue(MaskProperty);
         set => SetValue(MaskProperty, value);
@@ -158,10 +158,10 @@ public class ImageEditorControl : Control
             if (Mask is { } mask)
             {
                 using (context.PushOpacity(0.55))
-                    context.DrawImage(mask, _contentRect);
+                    context.DrawImage(mask.Overlay, _contentRect);
             }
 
-            if ((_pointerInside || ShowSizePreview) && IsPaintEnabled && BrushSize >= 4)
+            if (ShouldDrawBrushRing())
             {
                 // 与实际涂抹的圆盘一致画圆形光标；指针不在画布上（如正在拖大小滑块）时以图片中心预览
                 var center = _pointerInside
@@ -180,6 +180,9 @@ public class ImageEditorControl : Control
     }
 
     // ---- 视图缩放/平移 ----
+
+    /// <summary>画笔光标环显示条件。Render 与指针移动路径共用：移动路径据此跳过环不可见时的整帧重绘。</summary>
+    private bool ShouldDrawBrushRing() => (_pointerInside || ShowSizePreview) && IsPaintEnabled && BrushSize >= 4;
 
     /// <summary>以视口中心为锚点步进放大/缩小。</summary>
     internal void ZoomIn() => ZoomTo(_zoom * ZoomKeyStep);
@@ -362,8 +365,13 @@ public class ImageEditorControl : Control
                 _last = p;
                 _hasLast = true;
             }
+            InvalidateVisual();
+            base.OnPointerMoved(e);
+            return;
         }
-        InvalidateVisual();
+        // 空闲悬停只移动画笔光标环：环不可见（繁忙/画笔过小）时跳过整帧重绘，
+        // 否则指针移动会以全帧频率触发 Render（超大图上 Render 要整窗重采样两张位图）
+        if (ShouldDrawBrushRing()) InvalidateVisual();
         base.OnPointerMoved(e);
     }
 
@@ -484,42 +492,9 @@ public class ImageEditorControl : Control
         }
     }
 
-    /// <summary>以图片分辨率把白色实心圆写进遮罩位图（Bgra8888）。</summary>
+    /// <summary>以图片分辨率把白色实心圆写进遮罩层（权威数据 + 显示 overlay，两层同步）。</summary>
     private void PaintDisc(Point center)
     {
-        if (Mask is not { } mask) return;
-        int w = mask.PixelSize.Width;
-        int h = mask.PixelSize.Height;
-        double r = BrushRadius();
-        int x0 = Math.Max(0, (int)Math.Floor(center.X - r));
-        int x1 = Math.Min(w - 1, (int)Math.Ceiling(center.X + r));
-        int y0 = Math.Max(0, (int)Math.Floor(center.Y - r));
-        int y1 = Math.Min(h - 1, (int)Math.Ceiling(center.Y + r));
-        if (x1 < x0 || y1 < y0) return;
-        double r2 = r * r;
-        double cx = center.X;
-        double cy = center.Y;
-
-        using var frame = mask.Lock();
-        unsafe
-        {
-            var basePtr = (byte*)frame.Address;
-            int stride = frame.RowBytes;
-            for (int y = y0; y <= y1; y++)
-            {
-                double dy = y - cy;
-                var row = basePtr + (long)stride * y;
-                for (int x = x0; x <= x1; x++)
-                {
-                    double dx = x - cx;
-                    if (dx * dx + dy * dy > r2) continue;
-                    var p = row + x * 4;
-                    p[0] = 255;
-                    p[1] = 255;
-                    p[2] = 255;
-                    p[3] = 255;
-                }
-            }
-        }
+        Mask?.PaintDisc(center.X, center.Y, BrushRadius());
     }
 }

@@ -85,7 +85,7 @@
             <Panel Grid.Column="0">
                 <controls:ImageEditorControl x:Name="Editor"
                                              Source="{Binding CurrentImage}"
-                                             Mask="{Binding MaskImage}"
+                                             Mask="{Binding MaskLayer}"
                                              BrushSize="{Binding BrushSize}"
                                              IsPaintEnabled="{Binding !IsBusy}"/>
                 <TextBlock IsVisible="{Binding !HasImage}"

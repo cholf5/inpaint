@@ -43,6 +43,7 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(ZoomOut)] = "缩小",
         [nameof(InitialStatus)] = "打开一张图片，涂抹掉不想要的内容",
         [nameof(CannotOpen)] = "无法打开图片：{0}",
+        [nameof(LoadingImage)] = "正在加载图片…",
         [nameof(OriginalNode)] = "原图",
         [nameof(LoadedStatus)] = "已加载 {0}×{1}，涂抹后点「{2}」",
         [nameof(LoadedStatusAuto)] = "已加载 {0}×{1}，涂抹后松手即自动修复",
@@ -50,10 +51,12 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(Inpainting)] = "正在修复…",
         [nameof(InpaintDone)] = "修复完成（{0}×{1}）",
         [nameof(InpaintFailed)] = "修复失败：{0}",
+        [nameof(InpaintTooLarge)] = "图片过大（{0}×{1}），超出修复模型处理上限，无法修复",
         [nameof(PreparingUpscale)] = "正在准备超分模型…",
         [nameof(Upscaling)] = "正在放大 {0}×{1} → {2}×{3}…",
         [nameof(UpscaleDone)] = "放大完成（{0}×{1}）",
         [nameof(UpscaleFailed)] = "放大失败：{0}",
+        [nameof(UpscaleTooLarge)] = "图片过大（{0}×{1}），超出超分模型处理上限，无法放大",
         [nameof(SwitchedToNode)] = "已切换到「{0}」，继续修复/放大将开新车道分叉",
         [nameof(Undone)] = "已撤销",
         [nameof(BackToOriginal)] = "已回到原图",
@@ -149,6 +152,7 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(ZoomOut)] = "Zoom Out",
         [nameof(InitialStatus)] = "Open an image, then paint over the content you want removed",
         [nameof(CannotOpen)] = "Could not open image: {0}",
+        [nameof(LoadingImage)] = "Loading image…",
         [nameof(OriginalNode)] = "Original",
         [nameof(LoadedStatus)] = "Loaded {0}×{1}; paint over unwanted areas, then click “{2}”",
         [nameof(LoadedStatusAuto)] = "Loaded {0}×{1}; paint over unwanted areas — release to inpaint",
@@ -156,10 +160,12 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(Inpainting)] = "Inpainting…",
         [nameof(InpaintDone)] = "Inpaint done ({0}×{1})",
         [nameof(InpaintFailed)] = "Inpaint failed: {0}",
+        [nameof(InpaintTooLarge)] = "Image too large ({0}×{1}) for the inpaint model; unable to inpaint",
         [nameof(PreparingUpscale)] = "Preparing upscale model…",
         [nameof(Upscaling)] = "Upscaling {0}×{1} → {2}×{3}…",
         [nameof(UpscaleDone)] = "Upscale done ({0}×{1})",
         [nameof(UpscaleFailed)] = "Upscale failed: {0}",
+        [nameof(UpscaleTooLarge)] = "Image too large ({0}×{1}) for the upscale model; unable to upscale",
         [nameof(SwitchedToNode)] = "Switched to “{0}”; further edits will fork into a new lane",
         [nameof(Undone)] = "Undone",
         [nameof(BackToOriginal)] = "Back to the original image",
@@ -315,6 +321,7 @@ public sealed class Translations : INotifyPropertyChanged
 
     public string InitialStatus => Get();
     public string CannotOpen => Get();
+    public string LoadingImage => Get();
     public string OriginalNode => Get();
     public string LoadedStatus => Get();
     public string LoadedStatusAuto => Get();
@@ -322,10 +329,12 @@ public sealed class Translations : INotifyPropertyChanged
     public string Inpainting => Get();
     public string InpaintDone => Get();
     public string InpaintFailed => Get();
+    public string InpaintTooLarge => Get();
     public string PreparingUpscale => Get();
     public string Upscaling => Get();
     public string UpscaleDone => Get();
     public string UpscaleFailed => Get();
+    public string UpscaleTooLarge => Get();
     public string SwitchedToNode => Get();
     public string Undone => Get();
     public string BackToOriginal => Get();

@@ -29,18 +29,6 @@ public class MainWindowViewModelTests
         return bmp;
     }
 
-    private static byte[] ReadMaskPixels(WriteableBitmap mask, int width, int height)
-    {
-        using var frame = mask.Lock();
-        var raw = new byte[frame.RowBytes * height];
-        Marshal.Copy(frame.Address, raw, 0, raw.Length);
-        // 逐行去掉 RowBytes stride，得到紧凑 BGRA
-        var compact = new byte[4L * width * height];
-        for (int y = 0; y < height; y++)
-            Buffer.BlockCopy(raw, y * frame.RowBytes, compact, y * 4 * width, 4 * width);
-        return compact;
-    }
-
     private static void PushChain(MainWindowViewModel vm, int from, int to)
     {
         for (int i = from; i <= to; i++)
@@ -58,7 +46,7 @@ public class MainWindowViewModelTests
 
         Assert.True(vm.HasImage);
         Assert.Equal(new PixelSize(6, 4), vm.CurrentImage!.PixelSize);
-        Assert.Equal(new PixelSize(6, 4), vm.MaskImage!.PixelSize);
+        Assert.Equal(new PixelSize(6, 4), vm.MaskLayer!.ImageSize);
         // 回归：HasImage 变化必须通知命令，否则按钮在加载后仍不可用
         Assert.True(vm.InpaintCommand.CanExecute(null));
         Assert.True(vm.SaveCommand.CanExecute(null));
@@ -75,8 +63,8 @@ public class MainWindowViewModelTests
         Assert.NotNull(root.Thumbnail);
         // 测试环境没有剪贴板，复制命令应禁用
         Assert.False(vm.CopyNodeCommand.CanExecute(root));
-        // 遮罩初始全 0 字节（经 MaskBgraToChw 全部映射为 255 = 保留）
-        Assert.All(ReadMaskPixels(vm.MaskImage, 6, 4), b => Assert.Equal(0, (int)b));
+        // 遮罩权威数据初始全 0（= 保留；经 MaskGrayToChw 全部映射为 255）
+        Assert.All(vm.MaskLayer.Data, b => Assert.Equal(0, b));
     }
 
     [AvaloniaFact]
@@ -252,7 +240,7 @@ public class MainWindowViewModelTests
         vm.SelectNodeCommand.Execute(vm.HistoryNodes[1]);
 
         Assert.Equal(new PixelSize(2, 2), vm.CurrentImage!.PixelSize);
-        Assert.Equal(new PixelSize(2, 2), vm.MaskImage!.PixelSize);
+        Assert.Equal(new PixelSize(2, 2), vm.MaskLayer!.ImageSize);
         Assert.True(vm.HistoryNodes[1].IsCurrent);
         Assert.False(vm.HistoryNodes[2].IsCurrent);
         Assert.True(vm.UndoCommand.CanExecute(null));
@@ -275,7 +263,7 @@ public class MainWindowViewModelTests
         var root = Assert.Single(vm.HistoryNodes);
         Assert.Equal(new PixelSize(5, 5), root.Image.PixelSize);
         Assert.Equal(new PixelSize(5, 5), vm.CurrentImage!.PixelSize);
-        Assert.Equal(new PixelSize(5, 5), vm.MaskImage!.PixelSize);
+        Assert.Equal(new PixelSize(5, 5), vm.MaskLayer!.ImageSize);
     }
 
     [AvaloniaFact]
@@ -596,5 +584,67 @@ public class MainWindowViewModelTests
 
         vm.AdoptBitmap(MakeBitmap(2, 2));
         Assert.StartsWith("Inpaint_", vm.SuggestFileName(vm.CurrentNode!));
+    }
+
+    // ---- 超大图性能保护：历史字节预算、修复/超分像素上限、繁忙期忽略载入 ----
+
+    [AvaloniaFact]
+    public void PruneHistory_超字节预算_裁剪最旧节点且不受节点数限制()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        // 6 张 100×100（每张 40_000 字节）+ 根 4 字节 = 240_004 > 180_000；
+        // MaxHistory=25 不会触发，纯字节预算生效
+        vm.HistoryByteBudget = 180_000;
+        vm.AdoptBitmap(MakeBitmap(1, 1));
+        for (int i = 0; i < 6; i++)
+            vm.PushHistory(MakeBitmap(100, 100), $"测试{i}");
+
+        // 裁掉最旧两张链上节点（均为当前路径祖先，走拼接兜底）后 160_004 达标
+        Assert.Equal(5, vm.HistoryNodes.Count);
+        Assert.Equal(new PixelSize(1, 1), vm.HistoryNodes[0].Image.PixelSize);
+        Assert.Null(vm.HistoryNodes[0].Parent);
+        Assert.Equal(new PixelSize(100, 100), vm.CurrentImage!.PixelSize);
+        // 拼接后撤销链完整：4 次撤销回到原图
+        for (int i = 0; i < 4; i++)
+        {
+            Assert.True(vm.UndoCommand.CanExecute(null), $"第 {i + 1} 次撤销应可用");
+            vm.UndoCommand.Execute(null);
+        }
+        Assert.Equal(new PixelSize(1, 1), vm.CurrentImage!.PixelSize);
+        Assert.False(vm.UndoCommand.CanExecute(null));
+    }
+
+    [AvaloniaFact]
+    public void InpaintUpscale_超像素上限_写入状态且不进入繁忙()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        vm.AdoptBitmap(MakeBitmap(6, 4)); // 24 像素
+        vm.InpaintMaxPixels = 10;
+        vm.UpscaleMaxPixels = 10;
+
+        // guard 在置位 IsBusy 之前返回（同步段），命令执行完立即断言
+        vm.InpaintCommand.Execute(null);
+        Assert.StartsWith("图片过大", vm.StatusText);
+        Assert.False(vm.IsBusy);
+
+        vm.UpscaleCommand.Execute(null);
+        Assert.StartsWith("图片过大", vm.StatusText);
+        Assert.False(vm.IsBusy);
+    }
+
+    [AvaloniaFact]
+    public async Task LoadFromStreamAsync_繁忙时忽略载入()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        vm.IsBusy = true;
+        var source = MakeBitmap(2, 2);
+        using var encoded = new MemoryStream();
+        source.Save(encoded);
+        encoded.Position = 0;
+
+        await vm.LoadFromStreamAsync(encoded, "photo.jpg");
+
+        Assert.False(vm.HasImage);
+        Assert.Null(vm.StatusText);
     }
 }

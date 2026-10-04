@@ -36,18 +36,15 @@ public static class ImageProcessing
     }
 
     /// <summary>
-    /// 遮罩位图 → CHW（uint8）。约定与网页版一致：
-    /// 白色笔触（灰度恰为 255）= 待修复区域 → 0；其余（含透明背景）→ 255。
-    /// 灰度权重与 OpenCV BGR2GRAY 相同，纯白恰好落在 255。
+    /// 灰度遮罩 → CHW（uint8）。约定与网页版一致：255 = 待修复区域 → 0；其余 → 255。
+    /// 遮罩权威数据即每像素 1 字节的灰度（PaintDisc 只写纯白，见 App 层 MaskLayer），
+    /// 语义与旧版从 BGRA 位图按 OpenCV 灰度权重提纯白的结果一致。
     /// </summary>
-    public static byte[] MaskBgraToChw(ReadOnlySpan<byte> bgra, int width, int height)
+    public static byte[] MaskGrayToChw(ReadOnlySpan<byte> gray)
     {
-        var chw = new byte[width * height];
-        for (int i = 0, px = 0; i < chw.Length; i++, px += 4)
-        {
-            int gray = (bgra[px + 2] * 77 + bgra[px + 1] * 150 + bgra[px] * 29) >> 8;
-            chw[i] = gray == 255 ? (byte)0 : (byte)255;
-        }
+        var chw = new byte[gray.Length];
+        for (int i = 0; i < chw.Length; i++)
+            chw[i] = gray[i] == 255 ? (byte)0 : (byte)255;
         return chw;
     }
 

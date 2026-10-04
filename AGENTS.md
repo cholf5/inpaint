@@ -17,10 +17,12 @@ lxfater/inpaint-web 的 C# / .NET 10 + Avalonia 桌面重写：MI-GAN 图片修�
 
 ## 关键模型语义（移植自网页版，改动前先对照 inpaint-web/src/utils.ts）
 
-- **mask 张量：0 = 待修复，255 = 保留**。UI 白色笔触（灰度恰为 255，灰度权重同 OpenCV BGR2GRAY）映射为 0，见 `ImageProcessing.MaskBgraToChw`。
+- **mask 张量：0 = 待修复，255 = 保留**。UI 白色笔触映射为 0：画布写入 `MaskLayer`（权威数据 = 每像素 1 字节灰度，255 = 待修复），推理经 `ImageProcessing.MaskGrayToChw`（255 → 0）转换；语义与旧版从 BGRA 位图按 OpenCV 灰度权重提纯白等价。
+- **遮罩分两层（`Controls/MaskLayer`）**：权威 `Data`（byte[]，全分辨率）+ 显示 `Overlay`（WriteableBitmap，长边 ≤ 2048）。涂抹同步写两层；overlay 必须与原图分辨率解耦——WriteableBitmap 涂抹失效后整张重传 GPU（无增量更新），全分辨率遮罩在大图上等于每帧上传数百 MB。画布 `PaintDisc` 与 VM 推理（`MaskLayer.Data` 直转 CHW）都走它。
 - MI-GAN（`migan_pipeline_v2.onnx`）：输入 image `[1,3,H,W]` uint8（RGB）+ mask `[1,1,H,W]` uint8，前后处理都在模型内完成。
 - Real-ESRGAN（`realesrgan-x4.onnx`）：输入 float 0..1 RGB CHW；64×64 tile、四周外扩 6px 重叠、越界钳制到边缘像素，核心区 52×52，输出 ×4。
 - 位图侧统一 Bgra8888 紧凑布局，模型侧 RGB CHW（平面式）；转换全部在 Core。
+- **超大图性能约束**：像素级大块工作（`new Bitmap(stream)` 解码、`ExtractBgra`、CHW 前后处理、`CreateBitmap`）一律放后台（`Task.Run`），UI 线程只留属性赋值与缩略图绘制；修复/超分有像素上限 guard（VM `InpaintMaxPixels`/`UpscaleMaxPixels`，超限明确报错不 OOM）；历史裁剪除 `MaxHistory` 节点数外还有总字节预算（VM `HistoryByteBudget`，超大图自动收缩保留张数）；空闲悬停不触发画布整帧重绘（画笔光标环不可见时跳过 `InvalidateVisual`）。
 
 ## 推理与模型缓存
 

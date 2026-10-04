@@ -21,12 +21,12 @@ public class ImageEditorControlTests
     // 窗口 320×240、源图 64×48 → 显示缩放恰为 5，dest 铺满窗口，画笔 40 → 图片像素半径 4
     private const int WinW = SrcW * 5, WinH = SrcH * 5;
 
-    private readonly record struct EditorHost(Window Window, ImageEditorControl Editor, WriteableBitmap Mask);
+    private readonly record struct EditorHost(Window Window, ImageEditorControl Editor, MaskLayer Mask);
 
     private static EditorHost CreateEditor(double brushSize = 40)
     {
         var source = MakeSolidBitmap(SrcW, SrcH);
-        var mask = MakeMask(SrcW, SrcH);
+        var mask = new MaskLayer(new PixelSize(SrcW, SrcH));
         var editor = new ImageEditorControl { Source = source, Mask = mask, BrushSize = brushSize };
         var window = new Window { Width = WinW, Height = WinH, Content = editor };
         window.Show();
@@ -52,29 +52,9 @@ public class ImageEditorControlTests
         return bmp;
     }
 
-    private static WriteableBitmap MakeMask(int width, int height)
-    {
-        var bmp = new WriteableBitmap(new PixelSize(width, height), new Vector(96, 96), PixelFormats.Bgra8888);
-        using (var frame = bmp.Lock())
-            System.Runtime.InteropServices.Marshal.Copy(
-                new byte[frame.RowBytes * height], 0, frame.Address, frame.RowBytes * height);
-        return bmp;
-    }
-
-    /// <summary>读遮罩紧凑像素（去 stride），返回 (b,g,r,a)。</summary>
-    private static (byte B, byte G, byte R, byte A) MaskPixel(WriteableBitmap mask, int x, int y)
-    {
-        using var frame = mask.Lock();
-        var row = new byte[frame.RowBytes];
-        System.Runtime.InteropServices.Marshal.Copy((nint)(frame.Address + (long)frame.RowBytes * y), row, 0, frame.RowBytes);
-        return (row[x * 4], row[x * 4 + 1], row[x * 4 + 2], row[x * 4 + 3]);
-    }
-
-    private static bool IsWhite(WriteableBitmap mask, int x, int y)
-    {
-        var (b, g, r, a) = MaskPixel(mask, x, y);
-        return b == 255 && g == 255 && r == 255 && a == 255;
-    }
+    /// <summary>权威遮罩数据（255 = 待修复）在 (x,y) 处是否已涂抹。</summary>
+    private static bool IsWhite(MaskLayer mask, int x, int y) =>
+        mask.Data[y * mask.ImageSize.Width + x] == 255;
 
     [AvaloniaFact]
     public void 左键按下_按图片分辨率画出白色圆盘()
@@ -230,7 +210,6 @@ public class ImageEditorControlTests
     [AvaloniaFact]
     public void 没有遮罩或源图_按下不崩溃也不涂抹()
     {
-        var mask = MakeMask(SrcW, SrcH);
         var editor = new ImageEditorControl { BrushSize = 40 }; // 无 Source
         var window = new Window { Width = WinW, Height = WinH, Content = editor };
         window.Show();

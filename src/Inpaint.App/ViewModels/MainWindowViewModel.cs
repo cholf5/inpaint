@@ -6,9 +6,9 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Platform.Storage;
 using System.ComponentModel;
-using System.Runtime.InteropServices;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Inpaint.App.Controls;
 using Inpaint.App.Localization;
 using Inpaint.App.Services;
 using Inpaint.Core;
@@ -19,6 +19,24 @@ namespace Inpaint.App.ViewModels;
 public partial class MainWindowViewModel : ObservableObject
 {
     private const int ThumbnailMaxSide = 96;
+
+    /// <summary>
+    /// 修复模型单次推理的像素上限。MI-GAN 是全分辨率一次推理，超过后模型内存与耗时都会失控，
+    /// 明确报错优于 OOM 崩溃/永久假死。internal set 供单测注入小值验证 guard 链路。
+    /// </summary>
+    internal long InpaintMaxPixels { get; set; } = 32_000_000;
+
+    /// <summary>
+    /// 超分输入像素上限。×4 输出的峰值内存约 200 字节/输入像素（float 输出 + BGRA 转换 + 位图中转），
+    /// 32MP 输入约需 6GB 峰值，且 float 输出数组长度逼近 int 上限。internal set 供单测注入小值。
+    /// </summary>
+    internal long UpscaleMaxPixels { get; set; } = 32_000_000;
+
+    /// <summary>
+    /// 历史位图总字节预算（BGRA 体积合计）：MaxHistory 节点数之外的第二道约束，
+    /// 超大分辨率图上 25 张全分辨率位图可达数 GB，会触发系统级内存压力。internal set 供单测注入小值。
+    /// </summary>
+    internal long HistoryByteBudget { get; set; } = 4L * 1024 * 1024 * 1024;
 
     /// <summary>画笔大小范围（与 MainWindow 滑块一致）。internal 供单测。</summary>
     internal const double MinBrushSize = 4;
@@ -45,7 +63,7 @@ public partial class MainWindowViewModel : ObservableObject
     private bool _resetUpscaleWhenIdle;
 
     [ObservableProperty] private Bitmap? _currentImage;
-    [ObservableProperty] private WriteableBitmap? _maskImage;
+    [ObservableProperty] private MaskLayer? _maskLayer;
     [ObservableProperty] private double _brushSize = 40;
     [ObservableProperty] private double _progress;
     // 状态栏绑定的是派生属性 StatusDisplay，StatusText 变更必须连带通知，否则瞬态提示不刷新
@@ -186,15 +204,23 @@ public partial class MainWindowViewModel : ObservableObject
 
     public async Task LoadFromStreamAsync(Stream stream, string? sourcePath = null)
     {
+        if (IsBusy) return; // 推理/加载进行中忽略新载入，避免并发改写历史树
+        IsBusy = true;
         try
         {
-            AdoptBitmap(new Bitmap(stream), sourcePath);
+            StatusText = Translations.Instance.LoadingImage;
+            // 解码放后台：超大图（上百兆像素）的 PNG/JPEG 解码要数秒，同步跑在 UI 线程会整窗冻结
+            var bitmap = await Task.Run(() => new Bitmap(stream));
+            AdoptBitmap(bitmap, sourcePath);
         }
         catch (Exception e)
         {
             StatusText = string.Format(Translations.Instance.CannotOpen, e.Message);
         }
-        await Task.CompletedTask;
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     /// <summary>
@@ -249,22 +275,33 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(NotBusyAndHasImage))]
     private async Task InpaintAsync()
     {
-        if (CurrentImage is not { } current || MaskImage is not { } mask) return;
+        if (CurrentImage is not { } current || MaskLayer is not { } mask) return;
+        var size = current.PixelSize;
+        if ((long)size.Width * size.Height > InpaintMaxPixels)
+        {
+            StatusText = string.Format(Translations.Instance.InpaintTooLarge, size.Width, size.Height);
+            return;
+        }
         IsBusy = true;
         try
         {
-            var size = current.PixelSize;
             Progress = 0;
             StatusText = Translations.Instance.PreparingInpaint;
             _inpaintEngine ??= await InpaintEngine.CreateAsync(DownloadProgress());
+            var engine = _inpaintEngine;
             StatusText = Translations.Instance.Inpainting;
-            var imageChw = ImageProcessing.BgraToRgbChw(ExtractBgra(current), size.Width, size.Height);
-            var maskChw = ImageProcessing.MaskBgraToChw(ExtractBgra(mask), size.Width, size.Height);
-            var output = await Task.Run(() => _inpaintEngine.Run(size.Width, size.Height, imageChw, maskChw));
-            PushHistory(
-                CreateBitmap(size, ImageProcessing.RgbChwToBgra(output, size.Width, size.Height)),
-                Translations.Instance.NodeInpaint);
-            SetMask(size);
+            // 像素级前后处理与推理一起放后台：大图上 ExtractBgra/CHW 转换/写位图
+            // 都是数百 MB 级的拷贝与循环，留在 UI 线程会在推理前后各冻结数秒
+            var result = await Task.Run(() =>
+            {
+                var imageChw = ImageProcessing.BgraToRgbChw(ExtractBgra(current), size.Width, size.Height);
+                var maskChw = ImageProcessing.MaskGrayToChw(mask.Data);
+                var output = engine!.Run(size.Width, size.Height, imageChw, maskChw);
+                return CreateBitmap(size, ImageProcessing.RgbChwToBgra(output, size.Width, size.Height));
+            });
+            PushHistory(result, Translations.Instance.NodeInpaint);
+            MaskLayer?.Clear();
+            HasMaskStrokes = false;
             StatusText = string.Format(Translations.Instance.InpaintDone, size.Width, size.Height);
         }
         catch (Exception e)
@@ -314,23 +351,31 @@ public partial class MainWindowViewModel : ObservableObject
     private async Task UpscaleAsync()
     {
         if (CurrentImage is not { } current) return;
+        var size = current.PixelSize;
+        if ((long)size.Width * size.Height > UpscaleMaxPixels)
+        {
+            StatusText = string.Format(Translations.Instance.UpscaleTooLarge, size.Width, size.Height);
+            return;
+        }
         IsBusy = true;
         try
         {
-            var size = current.PixelSize;
             Progress = 0;
             StatusText = Translations.Instance.PreparingUpscale;
             _upscaleEngine ??= await UpscaleEngine.CreateAsync(
                 DownloadProgress(), accelerationMode: _settings.UpscaleDevice);
+            var engine = _upscaleEngine;
             StatusText = string.Format(
                 Translations.Instance.Upscaling, size.Width, size.Height, size.Width * 4, size.Height * 4);
-            var chw = ImageProcessing.BgraToRgbChwF32(ExtractBgra(current), size.Width, size.Height);
-            var output = await Task.Run(
-                () => _upscaleEngine.Run(size.Width, size.Height, chw, TileProgress()));
             var newSize = new PixelSize(size.Width * 4, size.Height * 4);
-            PushHistory(
-                CreateBitmap(newSize, ImageProcessing.RgbChwF32ToBgra(output, newSize.Width, newSize.Height)),
-                Translations.Instance.NodeUpscale);
+            // 输入转换、分块推理与输出转位图整体放后台（见 InpaintAsync 中的说明）
+            var result = await Task.Run(() =>
+            {
+                var chw = ImageProcessing.BgraToRgbChwF32(ExtractBgra(current), size.Width, size.Height);
+                var output = engine!.Run(size.Width, size.Height, chw, TileProgress());
+                return CreateBitmap(newSize, ImageProcessing.RgbChwF32ToBgra(output, newSize.Width, newSize.Height));
+            });
+            PushHistory(result, Translations.Instance.NodeUpscale);
             SetMask(newSize);
             StatusText = string.Format(Translations.Instance.UpscaleDone, newSize.Width, newSize.Height);
         }
@@ -400,7 +445,8 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(NotBusyAndHasImage))]
     private void ClearMask()
     {
-        if (CurrentImage is { } bitmap) SetMask(bitmap.PixelSize);
+        MaskLayer?.Clear();
+        HasMaskStrokes = false;
         StatusText = Translations.Instance.MaskCleared;
     }
 
@@ -443,21 +489,24 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 节点总数超上限时从最旧开始丢弃不在当前路径上的节点（其子树随之整体删除，
-    /// 子节点向上拼接到祖父以保持其余分支连通）；若整棵树是一条链则退而拼接最旧的非根节点。
-    /// 原图（根）与当前预览节点永不丢弃。
+    /// 节点数超 MaxHistory 或位图总字节超 HistoryByteBudget 时，从最旧开始丢弃不在当前路径上的节点
+    /// （其子树随之整体删除，子节点向上拼接到祖父以保持其余分支连通）；
+    /// 若整棵树是一条链则退而拼接最旧的非根节点。原图（根）与当前预览节点永不丢弃。
+    /// 字节预算兜住超大分辨率图：节点数没超也可能已占数 GB，触发系统级内存压力。
     /// </summary>
     private void PruneHistory()
     {
         if (_root is null) return;
         bool removed = false;
-        while (AllNodes(_root).Count() > _settings.MaxHistory)
+        while (true)
         {
+            var nodes = AllNodes(_root).ToList();
+            if (nodes.Count <= _settings.MaxHistory && BitmapBytes(nodes) <= HistoryByteBudget) break;
             var path = CurrentPathSet();
-            var victim = AllNodes(_root)
+            var victim = nodes
                     .Where(n => n != _root && !path.Contains(n))
                     .MinBy(n => n.Id)
-                ?? AllNodes(_root)
+                ?? nodes
                     .Where(n => n != _root && n != CurrentNode)
                     .MinBy(n => n.Id);
             if (victim is null) break;
@@ -472,6 +521,9 @@ public partial class MainWindowViewModel : ObservableObject
         }
         if (removed) RebuildHistory();
     }
+
+    private static long BitmapBytes(IEnumerable<ImageHistoryNode> nodes) =>
+        nodes.Sum(n => (long)n.Image.PixelSize.Width * n.Image.PixelSize.Height * 4);
 
     /// <summary>
     /// 重建 Graph 布局：行 = 全图按创建时间从上往下；
@@ -568,8 +620,8 @@ public partial class MainWindowViewModel : ObservableObject
 
     private void SetMask(PixelSize size)
     {
-        MaskImage?.Dispose();
-        MaskImage = CreateMask(size);
+        MaskLayer?.Dispose();
+        MaskLayer = new MaskLayer(size);
         HasMaskStrokes = false; // 新遮罩无涂抹，Enter 修复快捷键随之回到不可用
     }
 
@@ -669,17 +721,6 @@ public partial class MainWindowViewModel : ObservableObject
 
     private IProgress<double> TileProgress() => new Progress<double>(p => Progress = p);
 
-    private static WriteableBitmap CreateMask(PixelSize size)
-    {
-        var mask = new WriteableBitmap(size, new Vector(96, 96), PixelFormats.Bgra8888);
-        using var frame = mask.Lock();
-        unsafe
-        {
-            new Span<byte>((void*)frame.Address, frame.RowBytes * size.Height).Clear();
-        }
-        return mask;
-    }
-
     /// <summary>Bgra8888 写入 WriteableBitmap（逐行处理 stride）。internal 供单测。</summary>
     internal static WriteableBitmap CreateBitmap(PixelSize size, byte[] bgra)
     {
@@ -715,35 +756,21 @@ public partial class MainWindowViewModel : ObservableObject
         int stride = 4 * width;
         var result = new byte[4L * width * height];
         bool swap = bitmap.Format is { } format && format == PixelFormats.Rgba8888;
-        nint buffer = Marshal.AllocHGlobal(result.Length);
-        try
+        unsafe
         {
-            bitmap.CopyPixels(new PixelRect(0, 0, width, height), buffer, result.Length, stride);
-            unsafe
+            fixed (byte* dst = result)
             {
-                var src = (byte*)buffer;
-                fixed (byte* dst = result)
+                // 直接拷进托管数组：省去 AllocHGlobal 中转的一份全尺寸缓冲与一次整图拷贝
+                bitmap.CopyPixels(new PixelRect(0, 0, width, height), (nint)dst, result.Length, stride);
+            }
+            if (swap)
+            {
+                fixed (byte* p = result)
                 {
-                    if (!swap)
-                    {
-                        Buffer.MemoryCopy(src, dst, result.Length, result.Length);
-                    }
-                    else
-                    {
-                        for (int i = 0; i < result.Length; i += 4)
-                        {
-                            dst[i] = src[i + 2];
-                            dst[i + 1] = src[i + 1];
-                            dst[i + 2] = src[i];
-                            dst[i + 3] = src[i + 3];
-                        }
-                    }
+                    for (int i = 0; i < result.Length; i += 4)
+                        (p[i], p[i + 2]) = (p[i + 2], p[i]);
                 }
             }
-        }
-        finally
-        {
-            Marshal.FreeHGlobal(buffer);
         }
         return result;
     }
