@@ -36,6 +36,10 @@ public partial class MainWindow : Window
         // 「松手即修复」：一笔涂完自动执行修复（开关与门槛都在 ViewModel 内把关）
         Editor.StrokeCommitted += (_, _) => viewModel.OnStrokeCommitted();
 
+        // 滚轮在画布上直接调画笔大小（每档步进比 [ ] 快捷键大）；VM 钳制到滑块范围
+        Editor.BrushSizeWheel += (_, delta) =>
+            viewModel.AdjustBrushSize(delta * MainWindowViewModel.BrushWheelStep);
+
         // 拖动画笔大小滑块期间，指针虽在滑块上，也持续在画布上显示画笔大小预览环
         BrushSlider.AddHandler(Thumb.DragStartedEvent, (_, _) =>
         {

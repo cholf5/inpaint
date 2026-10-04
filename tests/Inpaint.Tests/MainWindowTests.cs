@@ -48,6 +48,36 @@ public class MainWindowTests
     }
 
     [AvaloniaFact]
+    public void 画布滚轮_按滚轮步进调整画笔大小()
+    {
+        var window = new MainWindow();
+        window.Show();
+        try
+        {
+            var editor = window.GetVisualDescendants().OfType<ImageEditorControl>().Single();
+            var vm = Assert.IsType<MainWindowViewModel>(window.DataContext);
+            vm.AdoptBitmap(new WriteableBitmap(new PixelSize(6, 4), new Vector(96, 96), PixelFormats.Bgra8888));
+            Assert.Equal(40, vm.BrushSize);
+            window.CaptureRenderedFrame(); // 先渲染一次，布局完成后再取画布在窗口中的坐标
+            var center = editor.TranslatePoint(
+                new Point(editor.Bounds.Width / 2, editor.Bounds.Height / 2), window)!.Value;
+
+            // 上滚放大 / 下滚缩小；delta 乘滚轮步进（比 [ ] 快捷键大）
+            window.MouseWheel(center, new Vector(0, 1), RawInputModifiers.None);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(40 + MainWindowViewModel.BrushWheelStep, vm.BrushSize);
+
+            window.MouseWheel(center, new Vector(0, -2), RawInputModifiers.None);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(40 - MainWindowViewModel.BrushWheelStep, vm.BrushSize);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
     public void 设置窗口_非模态单实例_关闭后可重新打开()
     {
         var window = new MainWindow();

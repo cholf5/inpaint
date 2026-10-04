@@ -90,6 +90,7 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(SectionShortcuts)] = "快捷键",
         [nameof(ShortcutBrushDecrease)] = "缩小画笔",
         [nameof(ShortcutBrushIncrease)] = "放大画笔",
+        [nameof(ShortcutBrushWheel)] = "画布上滚动滚轮调节画笔大小",
         [nameof(ShortcutInpaint)] = "执行修复（需已涂抹）",
         [nameof(SectionModels)] = "模型",
         [nameof(ModelsDirLabel)] = "模型缓存目录",
@@ -192,6 +193,7 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(SectionShortcuts)] = "Shortcuts",
         [nameof(ShortcutBrushDecrease)] = "Shrink brush",
         [nameof(ShortcutBrushIncrease)] = "Grow brush",
+        [nameof(ShortcutBrushWheel)] = "Scroll over the canvas to resize brush",
         [nameof(ShortcutInpaint)] = "Inpaint painted areas (paint the mask first)",
         [nameof(SectionModels)] = "Models",
         [nameof(ModelsDirLabel)] = "Model cache folder",
@@ -349,6 +351,7 @@ public sealed class Translations : INotifyPropertyChanged
     public string SectionShortcuts => Get();
     public string ShortcutBrushDecrease => Get();
     public string ShortcutBrushIncrease => Get();
+    public string ShortcutBrushWheel => Get();
     public string ShortcutInpaint => Get();
     public string SectionModels => Get();
     public string ModelsDirLabel => Get();

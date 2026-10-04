@@ -164,6 +164,27 @@ public class ImageEditorControlTests
     }
 
     [AvaloniaFact]
+    public void 滚轮_触发BrushSizeWheel并带原始增量_画笔不可用时不触发()
+    {
+        var host = CreateEditor();
+        double? delta = null;
+        host.Editor.BrushSizeWheel += (_, d) => delta = d;
+
+        host.Window.MouseWheel(new Point(WinW / 2.0, WinH / 2.0), new Vector(0, 1), RawInputModifiers.None);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(1, delta);
+
+        // 繁忙期间画笔不可用：不触发（不吞事件也无所谓，画布没有别的滚轮消费者）
+        host.Editor.IsPaintEnabled = false;
+        delta = null;
+        host.Window.MouseWheel(new Point(WinW / 2.0, WinH / 2.0), new Vector(0, -1), RawInputModifiers.None);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Null(delta);
+
+        host.Window.Close();
+    }
+
+    [AvaloniaFact]
     public void 笔触越界_钳制到图片边缘()
     {
         var host = CreateEditor();

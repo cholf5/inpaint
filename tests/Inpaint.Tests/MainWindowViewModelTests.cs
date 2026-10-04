@@ -281,6 +281,24 @@ public class MainWindowViewModelTests
     }
 
     [AvaloniaFact]
+    public void 画布滚轮_按滚轮步进调整画笔并钳制()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        Assert.Equal(40, vm.BrushSize);
+
+        vm.AdjustBrushSize(MainWindowViewModel.BrushWheelStep);
+        Assert.Equal(44, vm.BrushSize);
+        vm.AdjustBrushSize(-MainWindowViewModel.BrushWheelStep);
+        Assert.Equal(40, vm.BrushSize);
+
+        // 触底钳制到滑块范围
+        vm.AdjustBrushSize(1000 * MainWindowViewModel.BrushWheelStep);
+        Assert.Equal(MainWindowViewModel.MaxBrushSize, vm.BrushSize);
+        vm.AdjustBrushSize(-1000 * MainWindowViewModel.BrushWheelStep);
+        Assert.Equal(MainWindowViewModel.MinBrushSize, vm.BrushSize);
+    }
+
+    [AvaloniaFact]
     public void Enter修复快捷键_涂抹后才可用_遮罩重建后回到不可用()
     {
         var vm = new MainWindowViewModel(null, null);

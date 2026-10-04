@@ -33,6 +33,9 @@ public class ImageEditorControl : Control
     /// <summary>一笔涂抹结束（松开左键）后触发；「松手即修复」选项开启时据此自动执行修复。</summary>
     public event EventHandler? StrokeCommitted;
 
+    /// <summary>滚轮在画布上滚动后触发；参数为本次滚轮纵向增量（正 = 放大画笔），MainWindow 据此调 ViewModel 的画笔大小。</summary>
+    public event EventHandler<double>? BrushSizeWheel;
+
     static ImageEditorControl()
     {
         AffectsRender<ImageEditorControl>(SourceProperty);
@@ -189,6 +192,17 @@ public class ImageEditorControl : Control
             StrokeCommitted?.Invoke(this, EventArgs.Empty);
         }
         base.OnPointerReleased(e);
+    }
+
+    /// <summary>滚轮调画笔大小：涂抹进行中不响应（半径突变会切断笔画），繁忙/无图时画笔不可用则放行事件。</summary>
+    protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
+    {
+        if (!_stroking && IsPaintEnabled && Source is not null && e.Delta.Y != 0)
+        {
+            BrushSizeWheel?.Invoke(this, e.Delta.Y);
+            e.Handled = true;
+        }
+        base.OnPointerWheelChanged(e);
     }
 
     /// <summary>控件坐标 → 图片像素坐标（钳制到图片范围内，笔画越界时贴边）。</summary>

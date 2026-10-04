@@ -25,6 +25,9 @@ public partial class MainWindowViewModel : ObservableObject
     internal const double MaxBrushSize = 160;
     private const double BrushSizeStep = 1;
 
+    /// <summary>滚轮在画布上调节画笔的每档步进（滚轮要转得比 [ ] 快捷键快）。internal 供单测。</summary>
+    internal const double BrushWheelStep = 4;
+
     private static readonly string[] ImagePatterns = ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp"];
 
     private readonly IStorageProvider? _storage;
@@ -208,15 +211,19 @@ public partial class MainWindowViewModel : ObservableObject
         UndoCommand.NotifyCanExecuteChanged();
     }
 
-    // ---- 画笔大小（滑块 / 快捷键 [ ]）----
+    // ---- 画笔大小（滑块 / 快捷键 [ ] / 画布滚轮）----
 
-    /// <summary>快捷键 [：缩小画笔，钳制到滑块最小值。</summary>
-    [RelayCommand]
-    private void DecreaseBrushSize() => BrushSize = Math.Max(MinBrushSize, BrushSize - BrushSizeStep);
+    /// <summary>按给定增量调整画笔大小，钳制到滑块范围。internal 供单测。</summary>
+    internal void AdjustBrushSize(double delta) =>
+        BrushSize = Math.Clamp(BrushSize + delta, MinBrushSize, MaxBrushSize);
 
-    /// <summary>快捷键 ]：放大画笔，钳制到滑块最大值。</summary>
+    /// <summary>快捷键 [：缩小画笔。</summary>
     [RelayCommand]
-    private void IncreaseBrushSize() => BrushSize = Math.Min(MaxBrushSize, BrushSize + BrushSizeStep);
+    private void DecreaseBrushSize() => AdjustBrushSize(-BrushSizeStep);
+
+    /// <summary>快捷键 ]：放大画笔。</summary>
+    [RelayCommand]
+    private void IncreaseBrushSize() => AdjustBrushSize(BrushSizeStep);
 
     // ---- 修复 ----
 
