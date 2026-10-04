@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="src/Inpaint.App/Assets/app-icon.png" width="64" alt="Inpaint 图标"/>
+<img src="src/Inpaint.App/Assets/app-icon.png" width="128" alt="Inpaint 图标"/>
 
 # Inpaint
 
