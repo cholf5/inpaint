@@ -16,17 +16,29 @@
 
 ## 🎬 演示
 
-**图片修复** —— 用画笔涂抹想要移除的内容，MI-GAN 根据周围像素自动填补
+<div align="center">
 
 ![图片修复演示](docs/inpaint.gif)
 
-**高清化 ×4** —— Real-ESRGAN 分块放大，带接缝抑制
+**图片修复** —— 用画笔涂抹想要移除的内容，MI-GAN 根据周围像素自动填补
+
+</div>
+
+<div align="center">
 
 ![高清化演示](docs/upscale.gif)
 
-**设置** —— 主题、语言、加速设备等，任何修改即时生效
+**高清化 ×4** —— Real-ESRGAN 分块放大，带接缝抑制
+
+</div>
+
+<div align="center">
 
 ![设置演示](docs/settings.gif)
+
+**设置** —— 主题、语言、加速设备等，任何修改即时生效
+
+</div>
 
 ## ✨ 功能
 
