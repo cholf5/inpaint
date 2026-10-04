@@ -1,115 +1,154 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
-# This workflow will build, test, sign and package a WPF or Windows Forms desktop application
-# built on .NET Core.
-# To learn how to migrate your existing application to .NET Core,
-# refer to https://docs.microsoft.com/en-us/dotnet/desktop-wpf/migration/convert-project-from-net-framework
+# CI / 打包流水线
 #
-# To configure this workflow:
+# 触发与行为：
+#   - PR / push 到 main：只跑单元测试。
+#   - tag v*：测试通过后打包 —— macOS .app（scripts/package-macos.sh，arm64+x64，
+#     自包含、ad-hoc 签名）、Windows win-x64 自包含 zip + Inno Setup 安装包、Linux linux-x64 zip，
+#     创建 GitHub Release 并上传产物。
+#   - workflow_dispatch：手动触发打包（不建 Release，产物在本次 run 的 Artifacts 里），发版前试打包用。
 #
-# 1. Configure environment variables
-# GitHub sets default environment variables for every workflow run.
-# Replace the variables relative to your project in the "env" section below.
-#
-# 2. Signing
-# Generate a signing certificate in the Windows Application
-# Packaging Project or add an existing signing certificate to the project.
-# Next, use PowerShell to encode the .pfx file using Base64 encoding
-# by running the following Powershell script to generate the output string:
-#
-# $pfx_cert = Get-Content '.\SigningCertificate.pfx' -Encoding Byte
-# [System.Convert]::ToBase64String($pfx_cert) | Out-File 'SigningCertificate_Encoded.txt'
-#
-# Open the output file, SigningCertificate_Encoded.txt, and copy the
-# string inside. Then, add the string to the repo as a GitHub secret
-# and name it "Base64_Encoded_Pfx."
-# For more information on how to configure your signing certificate for
-# this workflow, refer to https://github.com/microsoft/github-actions-for-desktop-apps#signing
-#
-# Finally, add the signing certificate password to the repo as a secret and name it "Pfx_Key".
-# See "Build the Windows Application Packaging project" below to see how the secret is used.
-#
-# For more information on GitHub Actions, refer to https://github.com/features/actions
-# For a complete CI/CD sample to get started with GitHub Action workflows for Desktop Applications,
-# refer to https://github.com/microsoft/github-actions-for-desktop-apps
-
-name: .NET Core Desktop
+# 版本约定：GitHub Release tag 带 v 前缀，数值必须等于 src/Inpaint.App 的 csproj <Version>
+# （UpdateChecker 的比较基准），打 tag 前先改 csproj；tag 与 csproj 不一致时构建直接失败。
+name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
+    tags: ["v*"]
   pull_request:
-    branches: [ "main" ]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: "10.0.x"
+  APP_PROJECT: src/Inpaint.App/Inpaint.App.csproj
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    outputs:
+      # csproj <Version>，供打包 job 命名产物；tag 触发时已在此校验与 tag 一致
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Read version from csproj
+        id: version
+        run: |
+          VERSION=$(sed -n 's/.*<Version>\(.*\)<\/Version>.*/\1/p' "$APP_PROJECT" | head -1 | tr -d '[:space:]')
+          [ -n "$VERSION" ] || { echo "无法从 $APP_PROJECT 读取 <Version>" >&2; exit 1; }
+          case "$GITHUB_REF" in
+            refs/tags/v*)
+              TAG=${GITHUB_REF_NAME#v}
+              [ "$TAG" = "$VERSION" ] || { echo "tag $GITHUB_REF_NAME 与 csproj <Version>$VERSION 不一致" >&2; exit 1; }
+              ;;
+          esac
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Run tests
+        run: dotnet test Inpaint.slnx
 
-  build:
-
+  # 三个打包 job 只在 tag / 手动触发时跑；版本以 csproj <Version> 为单一来源，
+  # 在 test job 统一读取并作为 output 传递，tag 时校验与 tag 一致（不一致在测试阶段就失败）。
+  macos:
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    needs: test
+    runs-on: macos-latest
+    env:
+      VERSION: ${{ needs.test.outputs.version }}
     strategy:
       matrix:
-        configuration: [Debug, Release]
-
-    runs-on: windows-latest  # For a list of available runner types, refer to
-                             # https://help.github.com/en/actions/reference/workflow-syntax-for-github-actions#jobsjob_idruns-on
-
-    env:
-      Solution_Name: your-solution-name                         # Replace with your solution name, i.e. MyWpfApp.sln.
-      Test_Project_Path: your-test-project-path                 # Replace with the path to your test project, i.e. MyWpfApp.Tests\MyWpfApp.Tests.csproj.
-      Wap_Project_Directory: your-wap-project-directory-name    # Replace with the Wap project directory relative to the solution, i.e. MyWpfApp.Package.
-      Wap_Project_Path: your-wap-project-path                   # Replace with the path to your Wap project, i.e. MyWpf.App.Package\MyWpfApp.Package.wapproj.
-
+        arch: [arm64, x64]
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Package .app bundle
+        run: scripts/package-macos.sh ${{ matrix.arch }}
+      - name: Zip bundle
+        run: ditto -c -k --keepParent artifacts/macos/Inpaint.app "Inpaint-${VERSION}-macos-${{ matrix.arch }}.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-macos-${{ matrix.arch }}
+          path: Inpaint-*-macos-*.zip
+          if-no-files-found: error
 
-    # Install the .NET Core workload
-    - name: Install .NET Core
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 8.0.x
+  windows:
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    needs: test
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.test.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Publish self-contained exe
+        run: dotnet publish $env:APP_PROJECT -c Release -r win-x64 --self-contained true -o "Inpaint-${env:VERSION}-win-x64"
+      - name: Zip publish folder
+        shell: pwsh
+        run: Compress-Archive -Path "Inpaint-${env:VERSION}-win-x64" -DestinationPath "Inpaint-${env:VERSION}-win-x64.zip"
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+      - name: Build setup installer
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DAppVersion=$env:VERSION scripts\Inpaint.iss
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-win-x64
+          path: |
+            Inpaint-*-win-x64.zip
+            artifacts/windows/Inpaint-*-win-x64-setup.exe
+          if-no-files-found: error
 
-    # Add  MSBuild to the PATH: https://github.com/microsoft/setup-msbuild
-    - name: Setup MSBuild.exe
-      uses: microsoft/setup-msbuild@v2
+  linux:
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.test.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Publish self-contained binary
+        run: dotnet publish $APP_PROJECT -c Release -r linux-x64 --self-contained true -o "Inpaint-${VERSION}-linux-x64"
+      - name: Zip publish folder
+        run: zip -r "Inpaint-${VERSION}-linux-x64.zip" "Inpaint-${VERSION}-linux-x64"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-linux-x64
+          path: Inpaint-*-linux-x64.zip
+          if-no-files-found: error
 
-    # Execute all unit tests in the solution
-    - name: Execute unit tests
-      run: dotnet test
-
-    # Restore the application to populate the obj folder with RuntimeIdentifiers
-    - name: Restore the application
-      run: msbuild $env:Solution_Name /t:Restore /p:Configuration=$env:Configuration
-      env:
-        Configuration: ${{ matrix.configuration }}
-
-    # Decode the base 64 encoded pfx and save the Signing_Certificate
-    - name: Decode the pfx
-      run: |
-        $pfx_cert_byte = [System.Convert]::FromBase64String("${{ secrets.Base64_Encoded_Pfx }}")
-        $certificatePath = Join-Path -Path $env:Wap_Project_Directory -ChildPath GitHubActionsWorkflow.pfx
-        [IO.File]::WriteAllBytes("$certificatePath", $pfx_cert_byte)
-
-    # Create the app package by building and packaging the Windows Application Packaging project
-    - name: Create the app package
-      run: msbuild $env:Wap_Project_Path /p:Configuration=$env:Configuration /p:UapAppxPackageBuildMode=$env:Appx_Package_Build_Mode /p:AppxBundle=$env:Appx_Bundle /p:PackageCertificateKeyFile=GitHubActionsWorkflow.pfx /p:PackageCertificatePassword=${{ secrets.Pfx_Key }}
-      env:
-        Appx_Bundle: Always
-        Appx_Bundle_Platforms: x86|x64
-        Appx_Package_Build_Mode: StoreUpload
-        Configuration: ${{ matrix.configuration }}
-
-    # Remove the pfx
-    - name: Remove the pfx
-      run: Remove-Item -path $env:Wap_Project_Directory\GitHubActionsWorkflow.pfx
-
-    # Upload the MSIX package: https://github.com/marketplace/actions/upload-a-build-artifact
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: MSIX Package
-        path: ${{ env.Wap_Project_Directory }}\AppPackages
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [macos, windows, linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: package-*
+          merge-multiple: true
+          path: dist
+      - name: Create release and upload assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || \
+            gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes
+          gh release upload "$GITHUB_REF_NAME" dist/* --clobber
