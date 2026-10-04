@@ -25,6 +25,7 @@ public sealed class Translations : INotifyPropertyChanged
     {
         [nameof(AppTitle)] = "Inpaint — 图片修复与高清化",
         [nameof(Open)] = "打开图片…",
+        [nameof(Paste)] = "粘贴图片",
         [nameof(Save)] = "保存…",
         [nameof(Undo)] = "撤销",
         [nameof(ResetToOriginal)] = "回到原图",
@@ -169,6 +170,7 @@ public sealed class Translations : INotifyPropertyChanged
     {
         [nameof(AppTitle)] = "Inpaint — Inpainting & Upscaling",
         [nameof(Open)] = "Open Image…",
+        [nameof(Paste)] = "Paste Image",
         [nameof(Save)] = "Save…",
         [nameof(Undo)] = "Undo",
         [nameof(ResetToOriginal)] = "Reset to Original",

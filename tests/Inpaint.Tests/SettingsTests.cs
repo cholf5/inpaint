@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net;
+using System.Reflection;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
@@ -156,6 +157,30 @@ public class SettingsTests
         {
             t.PropertyChanged -= Handler;
         }
+    }
+
+    [Fact]
+    public void Translations_源词典覆盖全部字符串属性且En不引入新键()
+    {
+        // 中文为源词典：缺键时 Get() 回退返回属性名本身（曾漏补 Paste 键，中文界面按钮显示英文原词）。
+        // 直接反射词典断言键覆盖，而非取值与属性名比对——英文值恰与属性名同名（Undo/Brush/Cancel…）会误报
+        var fields = typeof(Translations).GetFields(BindingFlags.NonPublic | BindingFlags.Static)
+            .Where(f => f.FieldType == typeof(Dictionary<string, string>)).ToArray();
+        var zh = (Dictionary<string, string>)fields.Single(f => f.Name == "Zh").GetValue(null)!;
+        var en = (Dictionary<string, string>)fields.Single(f => f.Name == "En").GetValue(null)!;
+
+        // DeviceGpu/DeviceHint 是按平台选子键（DeviceGpuMacos/…、DeviceHintMacos/…）的派生属性，自身无词典键
+        string[] derived = ["DeviceGpu", "DeviceHint"];
+        var missing = typeof(Translations).GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(p => p.PropertyType == typeof(string))
+            .Select(p => p.Name)
+            .Where(name => !derived.Contains(name) && !zh.ContainsKey(name))
+            .ToArray();
+        Assert.True(missing.Length == 0, $"源词典 Zh 缺键：{string.Join(", ", missing)}");
+
+        // En 是覆盖项，只允许覆盖 Zh 已有的键；否则该键会在中文界面漏出英文
+        var extra = en.Keys.Where(key => !zh.ContainsKey(key)).ToArray();
+        Assert.True(extra.Length == 0, $"覆盖词典 En 含源词典没有的键：{string.Join(", ", extra)}");
     }
 
     [Fact]
