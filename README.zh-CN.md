@@ -1,18 +1,19 @@
 <div align="center">
 
-[English](./README.md) | 简体中文
-
-<img src="src/Inpaint.App/Assets/app-icon.png" width="128" alt="Inpaint 图标"/>
+<img src="src/Inpaint.App/Assets/app-icon.png" width="64" alt="Inpaint 图标"/>
 
 # Inpaint
 
-**纯本地的 AI 图片修复与高清化桌面应用**
+**纯本地的 AI 图片修复与高清化桌面应用。**[Inpaint-web](https://github.com/lxfater/inpaint-web)（WebGPU/WASM 浏览器版）的 C# / Avalonia 桌面重写：模型推理、图像处理、UI 全部是 C#，无 JavaScript、无服务器，**图片数据不出本机**。
 
-[Inpaint-web](https://github.com/lxfater/inpaint-web)（WebGPU/WASM 浏览器版）的 C# / Avalonia 桌面重写：模型推理、图像处理、UI 全部是 C#，无 JavaScript、无服务器，**图片数据不出本机**。
+🖌️ 涂抹修复 · 🔍 ×4 高清化 · 📦 导出压缩 PNG / JPEG / WebP · 🌳 git 式生成历史 · 🔒 纯本地离线
 
+[![Release](https://img.shields.io/github/v/release/cholf5/inpaint)](https://github.com/cholf5/inpaint/releases/latest)
 ![平台](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-blue)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)
 ![许可证](https://img.shields.io/badge/license-MIT-green)
+
+**[⬇️ 下载安装包](https://github.com/cholf5/inpaint/releases/latest)** · [🎬 演示](#-演示) · [✨ 功能](#-功能) · [📥 模型](#-模型) · [🐞 问题反馈](https://github.com/cholf5/inpaint/issues) · [English](./README.md) | 简体中文
 
 </div>
 

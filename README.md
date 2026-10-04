@@ -1,18 +1,19 @@
 <div align="center">
 
-English | [简体中文](./README.zh-CN.md)
-
-<img src="src/Inpaint.App/Assets/app-icon.png" width="128" alt="Inpaint icon"/>
+<img src="src/Inpaint.App/Assets/app-icon.png" width="64" alt="Inpaint icon"/>
 
 # Inpaint
 
-**A fully local AI photo inpainting & upscaling desktop app**
+**A fully local AI photo inpainting & upscaling desktop app.** A C# / Avalonia desktop rewrite of [Inpaint-web](https://github.com/lxfater/inpaint-web) (the WebGPU/WASM browser version): model inference, image processing, and UI are all C# — no JavaScript, no server, and **images never leave your machine**.
 
-A C# / Avalonia desktop rewrite of [Inpaint-web](https://github.com/lxfater/inpaint-web) (the WebGPU/WASM browser version): model inference, image processing, and UI are all C# — no JavaScript, no server, and **images never leave your machine**.
+🖌️ Inpaint (MI-GAN) · 🔍 Upscale ×4 (Real-ESRGAN) · 📦 Export PNG / JPEG / WebP · 🌳 Git-style history · 🔒 100% local & offline
 
+[![Release](https://img.shields.io/github/v/release/cholf5/inpaint)](https://github.com/cholf5/inpaint/releases/latest)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-blue)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)
 ![License](https://img.shields.io/badge/license-MIT-green)
+
+**[⬇️ Download](https://github.com/cholf5/inpaint/releases/latest)** · [🎬 Demo](#-demo) · [✨ Features](#-features) · [📥 Models](#-models) · [🐞 Report an issue](https://github.com/cholf5/inpaint/issues) · English | [简体中文](./README.zh-CN.md)
 
 </div>
 
