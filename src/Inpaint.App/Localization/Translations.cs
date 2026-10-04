@@ -115,6 +115,9 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(MaxHistoryLabel)] = "生成历史上限",
         [nameof(MaxHistoryHint)] = "超出上限时优先丢弃最旧的不在当前路径上的节点，原图永不丢弃。",
         [nameof(SectionShortcuts)] = "快捷键",
+        [nameof(ShortcutOpen)] = "打开图片",
+        [nameof(ShortcutExport)] = "导出当前图片",
+        [nameof(ShortcutUndo)] = "撤销到上一历史节点",
         [nameof(ShortcutBrushDecrease)] = "缩小画笔",
         [nameof(ShortcutBrushIncrease)] = "放大画笔",
         [nameof(ShortcutBrushWheel)] = "画布上滚动滚轮调节画笔大小",
@@ -248,6 +251,9 @@ public sealed class Translations : INotifyPropertyChanged
             "When exceeded, the oldest nodes off the current path are pruned first; " +
             "the original image is never dropped.",
         [nameof(SectionShortcuts)] = "Shortcuts",
+        [nameof(ShortcutOpen)] = "Open an image",
+        [nameof(ShortcutExport)] = "Export the current image",
+        [nameof(ShortcutUndo)] = "Undo to the previous history node",
         [nameof(ShortcutBrushDecrease)] = "Shrink brush",
         [nameof(ShortcutBrushIncrease)] = "Grow brush",
         [nameof(ShortcutBrushWheel)] = "Scroll over the canvas to resize brush",
@@ -442,6 +448,9 @@ public sealed class Translations : INotifyPropertyChanged
     public string MaxHistoryLabel => Get();
     public string MaxHistoryHint => Get();
     public string SectionShortcuts => Get();
+    public string ShortcutOpen => Get();
+    public string ShortcutExport => Get();
+    public string ShortcutUndo => Get();
     public string ShortcutBrushDecrease => Get();
     public string ShortcutBrushIncrease => Get();
     public string ShortcutBrushWheel => Get();

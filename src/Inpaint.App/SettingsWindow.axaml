@@ -104,7 +104,7 @@
         <TabItem Header="{Binding SectionShortcuts, Source={x:Static loc:Translations.Instance}}">
             <StackPanel Margin="16,14" Spacing="14">
                 <!-- 只读参考列表：左列键帽、右列动作；键名为语言无关字符，直接写死 -->
-                <Grid ColumnDefinitions="76,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="8">
+                <Grid ColumnDefinitions="76,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="8">
                     <Border Grid.Row="0" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center"
                             Padding="12,1" CornerRadius="4" BorderThickness="1" BorderBrush="#40000000">
                         <TextBlock Text="["/>
@@ -147,6 +147,24 @@
                     </Border>
                     <TextBlock Grid.Row="6" Grid.Column="1" VerticalAlignment="Center"
                                Text="{Binding ShortcutPan, Source={x:Static loc:Translations.Instance}}"/>
+                    <Border Grid.Row="7" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                            Padding="12,1" CornerRadius="4" BorderThickness="1" BorderBrush="#40000000">
+                        <TextBlock Text="⌘O"/>
+                    </Border>
+                    <TextBlock Grid.Row="7" Grid.Column="1" VerticalAlignment="Center"
+                               Text="{Binding ShortcutOpen, Source={x:Static loc:Translations.Instance}}"/>
+                    <Border Grid.Row="8" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                            Padding="12,1" CornerRadius="4" BorderThickness="1" BorderBrush="#40000000">
+                        <TextBlock Text="⌘S"/>
+                    </Border>
+                    <TextBlock Grid.Row="8" Grid.Column="1" VerticalAlignment="Center"
+                               Text="{Binding ShortcutExport, Source={x:Static loc:Translations.Instance}}"/>
+                    <Border Grid.Row="9" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                            Padding="12,1" CornerRadius="4" BorderThickness="1" BorderBrush="#40000000">
+                        <TextBlock Text="⌘Z"/>
+                    </Border>
+                    <TextBlock Grid.Row="9" Grid.Column="1" VerticalAlignment="Center"
+                               Text="{Binding ShortcutUndo, Source={x:Static loc:Translations.Instance}}"/>
                 </Grid>
             </StackPanel>
         </TabItem>
