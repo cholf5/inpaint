@@ -28,7 +28,7 @@ public sealed class InpaintEngine : IDisposable
         if (_session is null)
         {
             _session = new InferenceSession(
-                ModelStore.GetPath(KnownModels.MiganPipeline), OrtConfig.MakeSessionOptions(allowCoreML: false));
+                ModelStore.GetPath(KnownModels.MiganPipeline), OrtConfig.MakeSessionOptions(allowGpu: false));
             var inputNames = _session.InputMetadata.Keys.ToArray();
             _imageInput = inputNames.ElementAtOrDefault(0) ?? _imageInput;
             _maskInput = inputNames.ElementAtOrDefault(1) ?? _maskInput;

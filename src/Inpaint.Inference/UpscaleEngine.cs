@@ -44,7 +44,7 @@ public sealed class UpscaleEngine : IDisposable
         {
             _session = new InferenceSession(
                 ModelStore.GetPath(KnownModels.RealEsrganX4),
-                OrtConfig.MakeSessionOptions(allowCoreML: true, _accelerationMode));
+                OrtConfig.MakeSessionOptions(allowGpu: true, _accelerationMode));
             _inputName = _session.InputMetadata.Keys.FirstOrDefault() ?? _inputName;
             _outputName = _session.OutputMetadata.Keys.FirstOrDefault() ?? _outputName;
         }

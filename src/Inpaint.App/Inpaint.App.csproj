@@ -18,6 +18,27 @@
     <!-- 经 avares:// 协议嵌入程序集：XAML 里 Icon="avares://Inpaint.App/Assets/app-icon.ico" -->
     <AvaloniaResource Include="Assets/**" />
   </ItemGroup>
+  <!-- RID 发布时 PlatformTarget 推断为 x64/arm64，会让 DirectML 包的 targets 连带复制
+       DirectML.pdb 与 Debug 层 DLL（约 13MB 无用膨胀），用包预留的开关关掉，只留下面的精确复制。 -->
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'win-arm64'">
+    <Microsoft_AI_DirectML_SkipLibraryCopy>true</Microsoft_AI_DirectML_SkipLibraryCopy>
+    <Microsoft_AI_DirectML_SkipDebugLayerCopy>true</Microsoft_AI_DirectML_SkipDebugLayerCopy>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'win-arm64'">
+    <!-- DirectML.dll 是 DML EP（OrtConfig 的 Windows 分支）的运行时依赖。Microsoft.AI.DirectML
+         包（DirectML 包的传递依赖）的 targets 只为 C++ 工程复制（按 PlatformTarget 门控），.NET 下
+         不生效；LoadLibrary 本会回退到 System32 的 in-box 版本，但老版 Windows 的 in-box DirectML
+         过旧，自包含打包必须自带与 ORT 构建匹配的 1.15.x。这里直接引用该包是为了让它的 props
+         （含 bin 目录属性）在本工程求值——build/ 资产只流向直接引用方，从 Inference 传递不过来；
+         复制条目也只能定义在 exe 工程（工程体 None 条目不跨项目引用流动，进不了 publish）。 -->
+    <PackageReference Include="Microsoft.AI.DirectML" Version="1.15.4" />
+    <None Include="$(Microsoft_AI_DirectML_Bin_Dir_Windows_x64)\DirectML.dll"
+          Condition="'$(RuntimeIdentifier)' == 'win-x64'"
+          CopyToOutputDirectory="PreserveNewest" Link="DirectML.dll" Visible="false" />
+    <None Include="$(Microsoft_AI_DirectML_Bin_Dir_Windows_Arm64)\DirectML.dll"
+          Condition="'$(RuntimeIdentifier)' == 'win-arm64'"
+          CopyToOutputDirectory="PreserveNewest" Link="DirectML.dll" Visible="false" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.3" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.3" />

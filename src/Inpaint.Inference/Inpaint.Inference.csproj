@@ -7,7 +7,17 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.30.0" />
+    <!-- ONNX Runtime 按 RID 条件切换（条件只看目标 RID，与构建机 OS 无关——CI 在 ubuntu 上打全部
+         平台的包）。DirectML EP 只编译进 Microsoft.ML.OnnxRuntime.DirectML 的原生库，且该包止于
+         1.24.4，managed 与 native 必须同版本配对（native 的 C API 拒绝更高版本 managed 请求的 API
+         版本号），故 win-x64/win-arm64 RID 下整套固定 Managed 1.24.4 + DirectML 1.24.4；其余平台与
+         无 RID 的开发/测试运行维持 1.30.0 全家桶（CPU 原生 + macOS CoreML）。EP 策略见 OrtConfig。 -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.30.0"
+                      Condition="'$(RuntimeIdentifier)' != 'win-x64' and '$(RuntimeIdentifier)' != 'win-arm64'" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.Managed" Version="1.24.4"
+                      Condition="'$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'win-arm64'" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.DirectML" Version="1.24.4"
+                      Condition="'$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'win-arm64'" />
   </ItemGroup>
 
   <ItemGroup>

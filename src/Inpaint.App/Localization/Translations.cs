@@ -109,10 +109,19 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(DeviceLabel)] = "Real-ESRGAN 执行设备",
         [nameof(DeviceAuto)] = "自动（推荐）",
         [nameof(DeviceCpu)] = "CPU",
-        [nameof(DeviceGpu)] = "GPU（CoreML）",
-        [nameof(DeviceHint)] =
-            "GPU 经 CoreML 加速，目前仅 macOS 生效；切换后首次推理需重新编译模型（约 3~4 秒）。" +
+        [nameof(DeviceGpuMacos)] = "GPU（CoreML）",
+        [nameof(DeviceGpuWindows)] = "GPU（DirectML）",
+        [nameof(DeviceGpuOther)] = "GPU（此平台暂不支持，等效 CPU）",
+        [nameof(DeviceHintMacos)] =
+            "GPU 经 CoreML 加速，自动（推荐）与 GPU 档均启用；切换后首次推理需重新编译模型（约 3~4 秒）。" +
             "修复模型（MI-GAN）固定使用 CPU。环境变量 INPAINT_EP 优先级高于此设置。",
+        [nameof(DeviceHintWindows)] =
+            "GPU 经 DirectML 加速（需支持 D3D12 的显卡），仅 GPU 档启用，自动（推荐）保持 CPU；" +
+            "切换后首次推理需初始化 GPU 资源（约 4 秒）。修复模型（MI-GAN）固定使用 CPU。" +
+            "环境变量 INPAINT_EP 优先级高于此设置。",
+        [nameof(DeviceHintOther)] =
+            "此平台暂无 GPU 加速，GPU 档等效 CPU。修复模型（MI-GAN）固定使用 CPU。" +
+            "环境变量 INPAINT_EP 优先级高于此设置。",
         [nameof(DefaultBrushLabel)] = "默认画笔大小",
         [nameof(MaxHistoryLabel)] = "生成历史上限",
         [nameof(MaxHistoryHint)] = "超出上限时优先丢弃最旧的不在当前路径上的节点，原图永不丢弃。",
@@ -246,11 +255,21 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(DeviceLabel)] = "Real-ESRGAN device",
         [nameof(DeviceAuto)] = "Auto (recommended)",
         [nameof(DeviceCpu)] = "CPU",
-        [nameof(DeviceGpu)] = "GPU (CoreML)",
-        [nameof(DeviceHint)] =
-            "GPU runs via CoreML and is currently macOS-only; the first inference after switching " +
-            "recompiles the model (3–4 s). The inpaint model (MI-GAN) always runs on CPU. " +
+        [nameof(DeviceGpuMacos)] = "GPU (CoreML)",
+        [nameof(DeviceGpuWindows)] = "GPU (DirectML)",
+        [nameof(DeviceGpuOther)] = "GPU (not available; same as CPU)",
+        [nameof(DeviceHintMacos)] =
+            "GPU runs via CoreML and is enabled for both Auto (recommended) and GPU; the first inference " +
+            "after switching recompiles the model (3–4 s). The inpaint model (MI-GAN) always runs on CPU. " +
             "The INPAINT_EP environment variable takes precedence over this setting.",
+        [nameof(DeviceHintWindows)] =
+            "GPU runs via DirectML (requires a D3D12-capable GPU) and is enabled only for the GPU option; " +
+            "Auto (recommended) stays on CPU. The first inference after switching initializes GPU resources " +
+            "(~4 s). The inpaint model (MI-GAN) always runs on CPU. The INPAINT_EP environment variable " +
+            "takes precedence over this setting.",
+        [nameof(DeviceHintOther)] =
+            "No GPU acceleration on this platform; the GPU option behaves like CPU. The inpaint model " +
+            "(MI-GAN) always runs on CPU. The INPAINT_EP environment variable takes precedence over this setting.",
         [nameof(DefaultBrushLabel)] = "Default brush size",
         [nameof(MaxHistoryLabel)] = "History limit",
         [nameof(MaxHistoryHint)] =
@@ -453,8 +472,18 @@ public sealed class Translations : INotifyPropertyChanged
     public string DeviceLabel => Get();
     public string DeviceAuto => Get();
     public string DeviceCpu => Get();
-    public string DeviceGpu => Get();
-    public string DeviceHint => Get();
+    /// <summary>GPU 档文案按平台区分：macOS=CoreML，Windows=DirectML，其余平台标注暂不支持（档位等效 CPU）。</summary>
+    public string DeviceGpu => OperatingSystem.IsMacOS() ? DeviceGpuMacos
+        : OperatingSystem.IsWindows() ? DeviceGpuWindows : DeviceGpuOther;
+    public string DeviceGpuMacos => Get();
+    public string DeviceGpuWindows => Get();
+    public string DeviceGpuOther => Get();
+    /// <summary>性能页提示按平台取对应文案（SettingsWindow.axaml 直接绑定本属性）；语言切换经全属性 raise 刷新。</summary>
+    public string DeviceHint => OperatingSystem.IsMacOS() ? DeviceHintMacos
+        : OperatingSystem.IsWindows() ? DeviceHintWindows : DeviceHintOther;
+    public string DeviceHintMacos => Get();
+    public string DeviceHintWindows => Get();
+    public string DeviceHintOther => Get();
     public string DefaultBrushLabel => Get();
     public string MaxHistoryLabel => Get();
     public string MaxHistoryHint => Get();

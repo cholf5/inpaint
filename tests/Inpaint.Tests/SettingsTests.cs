@@ -204,7 +204,11 @@ public class SettingsTests
 
         // 选项实例不变、只换 Label：选区不因 ItemsSource 重建而丢失/清空
         Assert.Equal("Follow system", vm.ThemeOptions[0].Label);
-        Assert.Equal("GPU (CoreML)", vm.DeviceOptions[2].Label);
+        // GPU 档文案按平台区分：macOS=CoreML，Windows=DirectML，其余平台标注暂不支持
+        var expectedGpuLabel = OperatingSystem.IsMacOS() ? "GPU (CoreML)"
+            : OperatingSystem.IsWindows() ? "GPU (DirectML)"
+            : "GPU (not available; same as CPU)";
+        Assert.Equal(expectedGpuLabel, vm.DeviceOptions[2].Label);
         Assert.Equal(2, vm.ThemeIndex);
     }
 
