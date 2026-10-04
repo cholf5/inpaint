@@ -31,8 +31,10 @@ public class LanguageLiveSwitchTests
         mainWindow.Show();
         settingsWindow.Show();
 
-        // WireSettings 对任何设置变更都会 Save 到真实用户目录，先快照、最后字节级还原
-        var snapshot = File.ReadAllBytes(SettingsService.SettingsPath);
+        // WireSettings 对任何设置变更都会 Save 到真实用户目录，先快照、最后字节级还原；
+        // 全新环境（如 CI）里文件可能尚不存在，此时结束时删除而非还原
+        var settingsPath = SettingsService.SettingsPath;
+        var snapshot = File.Exists(settingsPath) ? File.ReadAllBytes(settingsPath) : null;
 
         try
         {
@@ -84,9 +86,10 @@ public class LanguageLiveSwitchTests
         }
         finally
         {
-            // 恢复运行期语言，并把测试期间触发的落盘字节级还原
+            // 恢复运行期语言，并把测试期间触发的落盘字节级还原（原本没有则删掉测试新建的）
             Translations.Instance.SetLanguage(AppLanguage.SimplifiedChinese);
-            File.WriteAllBytes(SettingsService.SettingsPath, snapshot);
+            if (snapshot is { } bytes) File.WriteAllBytes(settingsPath, bytes);
+            else File.Delete(settingsPath);
             settingsWindow.Close();
             mainWindow.Close();
         }

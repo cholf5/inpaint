@@ -1,6 +1,7 @@
 #!/bin/sh
 # 发版脚本：改 csproj <Version> → 提交 → 打 v tag → push，之后 CI
-# （.github/workflows/dotnet-desktop.yml）自动测试、打包 macOS/Windows 产物并创建 GitHub Release。
+# （.github/workflows/dotnet-desktop.yml）自动测试、打包三平台产物（macOS zip ×2、
+# Windows zip + Inno Setup 安装包、Linux zip）并创建 GitHub Release。
 #
 # 用法: scripts/release.sh <x.y.z> [--skip-test] [--watch]
 #   --skip-test  跳过本地 dotnet test（CI 仍会跑，测试不过不会出包）
@@ -109,7 +110,8 @@ done
 # 核对三平台产物是否齐全
 ASSETS=$(gh release view "$TAG" --json assets --jq '[.assets[].name] | join(",")' 2>/dev/null || true)
 MISSING=
-for want in "Inpaint-$VERSION-macos-arm64.zip" "Inpaint-$VERSION-macos-x64.zip" "Inpaint-$VERSION-win-x64.zip"; do
+for want in "Inpaint-$VERSION-macos-arm64.zip" "Inpaint-$VERSION-macos-x64.zip" \
+  "Inpaint-$VERSION-win-x64.zip" "Inpaint-$VERSION-win-x64-setup.exe" "Inpaint-$VERSION-linux-x64.zip"; do
   case ",$ASSETS," in
     *",$want,"*) ;;
     *) MISSING="$MISSING $want" ;;

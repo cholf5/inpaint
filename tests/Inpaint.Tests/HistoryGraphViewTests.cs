@@ -92,8 +92,9 @@ public class HistoryGraphViewTests
         Assert.True(Pixel(pixels, width, (int)((LaneX(0) + LaneX(1)) / 2), (int)NodeY(1)) is var fork && fork.r > 150,
             $"分叉接头应为玫红，实际 RGB=({fork.r},{fork.g},{fork.b})");
 
-        // 主干车道竖线（行 0 缩略图下方与行 1 缩略图上方之间的空隙）：灰色
-        Assert.True(Pixel(pixels, width, (int)LaneX(0), 100) is var line
+        // 主干车道竖线（行 0 标签下方、行 1 圆点上方 y≈110~126 的空白带；
+        // 标签带 y≈94~106 不能采：Linux 次像素 AA / 字体回退会给字形边缘染上彩边）：灰色
+        Assert.True(Pixel(pixels, width, (int)LaneX(0), 118) is var line
                 && line.r is > 140 and < 215 && Math.Abs(line.b - line.r) < 14 && Math.Abs(line.g - line.r) < 14,
             $"主干车道线应为灰色，实际 RGB=({line.r},{line.g},{line.b})");
 
