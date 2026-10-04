@@ -80,6 +80,21 @@ public class MainWindowViewModelTests
     }
 
     [AvaloniaFact]
+    public void AdoptBitmap_加载提示通知StatusDisplay刷新()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        var notified = new List<string?>();
+        vm.PropertyChanged += (_, e) => notified.Add(e.PropertyName);
+
+        vm.AdoptBitmap(MakeBitmap(6, 4));
+
+        // 回归：状态栏绑定派生属性 StatusDisplay，StatusText 变更必须连带通知，
+        // 否则「已加载 W×H…」提示要等下次语言切换才浮现
+        Assert.Contains(nameof(MainWindowViewModel.StatusDisplay), notified);
+        Assert.StartsWith("已加载 6×4", vm.StatusDisplay);
+    }
+
+    [AvaloniaFact]
     public async Task LoadFromStreamAsync_无效流写入StatusText不抛异常()
     {
         var vm = new MainWindowViewModel(null, null);

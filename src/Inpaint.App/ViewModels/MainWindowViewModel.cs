@@ -42,7 +42,10 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private WriteableBitmap? _maskImage;
     [ObservableProperty] private double _brushSize = 40;
     [ObservableProperty] private double _progress;
-    [ObservableProperty] private string? _statusText;
+    // 状态栏绑定的是派生属性 StatusDisplay，StatusText 变更必须连带通知，否则瞬态提示不刷新
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StatusDisplay))]
+    private string? _statusText;
     [ObservableProperty] private IReadOnlyList<ImageHistoryNode> _historyNodes = [];
     [ObservableProperty] private bool _isHistoryVisible = true;
 
