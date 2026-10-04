@@ -1,27 +1,29 @@
 <div align="center">
 
-<img src="src/Inpaint.App/Assets/app-icon.png" width="128" alt="Inpaint 图标"/>
+English | [简体中文](./README.zh-CN.md)
+
+<img src="src/Inpaint.App/Assets/app-icon.png" width="128" alt="Inpaint icon"/>
 
 # Inpaint
 
-**纯本地的 AI 图片修复与高清化桌面应用**
+**A fully local AI photo inpainting & upscaling desktop app**
 
-[Inpaint-web](https://github.com/lxfater/inpaint-web)（WebGPU/WASM 浏览器版）的 C# / Avalonia 桌面重写：模型推理、图像处理、UI 全部是 C#，无 JavaScript、无服务器，**图片数据不出本机**。
+A C# / Avalonia desktop rewrite of [Inpaint-web](https://github.com/lxfater/inpaint-web) (the WebGPU/WASM browser version): model inference, image processing, and UI are all C# — no JavaScript, no server, and **images never leave your machine**.
 
-![平台](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-blue)
+![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-blue)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)
-![许可证](https://img.shields.io/badge/license-MIT-green)
+![License](https://img.shields.io/badge/license-MIT-green)
 
 </div>
 
-## 🎬 演示
+## 🎬 Demo
 
 <table align="center">
   <tr>
-    <td><img src="docs/inpaint.gif" alt="图片修复演示" width="800"></td>
+    <td><img src="docs/inpaint.gif" alt="Inpainting demo" width="800"></td>
   </tr>
   <tr>
-    <td align="center"><small><strong>图片修复</strong> —— 用画笔涂抹想要移除的内容，MI-GAN 根据周围像素自动填补</small></td>
+    <td align="center"><small><strong>Inpainting</strong> — brush over the content you want to remove and MI-GAN fills it in from the surrounding pixels</small></td>
   </tr>
 </table>
 
@@ -29,10 +31,10 @@
 
 <table align="center">
   <tr>
-    <td><img src="docs/upscale.gif" alt="图片高清化演示" width="800"></td>
+    <td><img src="docs/upscale.gif" alt="Upscaling demo" width="800"></td>
   </tr>
   <tr>
-    <td align="center"><small><strong>图片高清化</strong> —— Real-ESRGAN 分块放大，带接缝抑制</small></td>
+    <td align="center"><small><strong>Upscaling</strong> — Real-ESRGAN tiled upscaling with seam suppression</small></td>
   </tr>
 </table>
 
@@ -40,70 +42,70 @@
 
 <table align="center">
   <tr>
-    <td><img src="docs/settings.gif" alt="设置演示" width="800"></td>
+    <td><img src="docs/settings.gif" alt="Settings demo" width="800"></td>
   </tr>
   <tr>
-    <td align="center"><small><strong>设置</strong> —— 主题、语言、加速设备等，任何修改即时生效</small></td>
+    <td align="center"><small><strong>Settings</strong> — theme, language, acceleration device, and more; every change takes effect immediately</small></td>
   </tr>
 </table>
 
-## ✨ 功能
+## ✨ Features
 
-- **图片修复（Inpaint）**：涂抹即修复（松手立即执行，可在设置中改回按钮式）。
-- **高清化（Super-Resolution ×4）**：Real-ESRGAN 分块放大，macOS 上默认 CoreML GPU 加速。
-- **精细编辑**：画布缩放 / 平移便于涂抹细节，鼠标滚轮在画布上直接调画笔大小。
-- **生成历史**：git 式分叉历史树，撤销 / 分叉 / 回到原图，节点上限可配置（默认 25）。
-- **导出压缩**：保存时可选 PNG / JPEG / WebP 与质量，实时预估输出大小（预估字节即最终落盘字节），并带 1:1 像素取样预览——按住对比原图、拖动查看不同区域，JPEG 自动把透明区域合成到白底；基于系统自带 Skia 编码，无额外依赖。
-- **个性化**：深色 / 浅色 / 跟随系统主题，简体中文 / English 界面，默认画笔大小、历史上限等均可在设置中调整。
-- **纯本地**：模型首次使用时自动下载并缓存到本机，之后完全离线；启动联网检查更新默认关闭。
+- **Inpainting**: brush over an area and it gets repaired — runs as soon as you release the stroke (switchable back to button mode in Settings).
+- **Super-resolution (×4 upscaling)**: Real-ESRGAN tiled upscaling, with CoreML GPU acceleration by default on macOS.
+- **Fine-grained editing**: canvas zoom / pan for masking small details; the mouse wheel adjusts brush size directly over the canvas.
+- **Generation history**: a git-style branching history tree — undo, branch, or go back to the original; the node limit is configurable (25 by default).
+- **Export & compression**: on save, choose PNG / JPEG / WebP and quality with a live output size estimate (the estimated bytes are exactly the bytes written to disk), plus a 1:1 pixel-sampled preview — hold to compare against the original, drag to inspect different regions; JPEG automatically composites transparent areas onto a white background. Encoding uses the built-in Skia, so there are no extra dependencies.
+- **Personalization**: dark / light / follow-system theme, Simplified Chinese / English UI, plus default brush size, history limit, and more — all adjustable in Settings.
+- **Fully local**: models download automatically and are cached on first use, after which everything works offline; the startup update check is opt-in and off by default.
 
-## 📦 下载
+## 📦 Download
 
-前往 [Releases](https://github.com/cholf5/inpaint/releases) 下载对应平台的安装包（macOS / Windows 便携版与 Setup 安装包 / Linux）。首次使用修复或高清化功能时会自动下载对应 ONNX 模型。
+Head to [Releases](https://github.com/cholf5/inpaint/releases) for the package matching your platform (macOS / Windows portable & Setup installer / Linux). The corresponding ONNX model downloads automatically the first time you use inpainting or upscaling.
 
-## 🛠️ 从源码构建
+## 🛠️ Building from source
 
-需要 .NET 10 SDK。
+Requires the .NET 10 SDK.
 
 ```bash
 dotnet build Inpaint.slnx
 dotnet run --project src/Inpaint.App
 ```
 
-单元测试：`dotnet test`（无需模型文件，不需要网络）。
+Unit tests: `dotnet test` (no model files or network required).
 
-## 🧱 项目结构
+## 🧱 Project structure
 
-| 项目 | 职责 |
+| Project | Responsibility |
 |---|---|
-| `src/Inpaint.Core` | 图像布局转换（Bgra8888 ↔ RGB CHW、mask 二值化），零依赖 |
-| `src/Inpaint.Inference` | ONNX Runtime 推理：模型下载与本地缓存、MI-GAN 修复、Real-ESRGAN 分块超分 |
-| `src/Inpaint.App` | Avalonia UI：画笔编辑控件、历史管理、进度与状态 |
+| `src/Inpaint.Core` | Image layout conversions (Bgra8888 ↔ RGB CHW, mask binarization); zero dependencies |
+| `src/Inpaint.Inference` | ONNX Runtime inference: model download & local caching, MI-GAN inpainting, Real-ESRGAN tiled super-resolution |
+| `src/Inpaint.App` | Avalonia UI: brush editing canvas, history management, progress & status |
 
-## 📥 模型
+## 📥 Models
 
-与网页版使用相同的 ONNX 模型（`migan_pipeline_v2.onnx`、`realesrgan-x4.onnx`）。首次使用对应功能时自动从 HuggingFace 下载（失败时切换备用源），缓存到应用数据目录：
+Same ONNX models as the web version (`migan_pipeline_v2.onnx`, `realesrgan-x4.onnx`). The first time you use a feature, its model downloads automatically from HuggingFace (with a fallback source on failure) and is cached under the app data directory:
 
 - macOS: `~/Library/Application Support/Inpaint/models/`
 - Windows: `%APPDATA%\Inpaint\models\`
 - Linux: `~/.local/share/Inpaint/models/`
 
-网络受限时可手动下载模型放入上述目录。HuggingFace 直连不通时可用环境变量代理（`https_proxy` 等），或从 hf-mirror.com 下载后手动放置；设置里也可直接打开模型缓存文件夹。
+If your network is restricted, you can download the models manually and place them in the directory above. When HuggingFace is unreachable directly, go through a proxy via environment variables (`https_proxy`, etc.), or download from hf-mirror.com and place the files manually; the Settings window can also open the model cache folder directly.
 
-## 🔑 关键约定（移植自网页版）
+## 🔑 Key conventions (ported from the web version)
 
-- 模型输入：`image [1,3,H,W] uint8`（RGB）+ `mask [1,1,H,W] uint8`；**mask 中 0 = 待修复区域，255 = 保留**（UI 白色笔触经灰度权重映射为 0，与网页版 markProcess 语义一致）。
-- 超分分块：64×64 tile，四周外扩 6px 重叠、越界钳制到边缘像素，核心区 52×52，输出 4 倍。
+- Model inputs: `image [1,3,H,W] uint8` (RGB) + `mask [1,1,H,W] uint8`; **in the mask, 0 = area to inpaint, 255 = keep** (white brush strokes are mapped to 0 via grayscale weights, matching the web version's markProcess semantics).
+- Super-resolution tiling: 64×64 tiles with 6px overlap padding on all sides, clamped to edge pixels when out of bounds; the 52×52 core region is output at 4× scale.
 
-## ⚡ GPU 加速
+## ⚡ GPU acceleration
 
-按引擎区分，设置界面可选超分加速设备（自动 / CPU / GPU，对下次会话生效）：
+Differs by engine; the super-resolution acceleration device is selectable in Settings (Auto / CPU / GPU, effective from the next session):
 
-- **超分（Real-ESRGAN，全卷积）**：macOS 默认走 CoreML——M2 实测 64×64 tile 从 540ms(CPU) 降到 11ms，代价是会话编译 3~4 秒的一次性开销。
-- **修复（MI-GAN）**：保持 CPU——CoreML 只能接管其 559 个节点中的 375 个，分区搬运反而使单次推理从 0.4s 恶化到 69s。
-- 环境变量 `INPAINT_EP` 优先级最高：`cpu` 强制全部回退 CPU，`coreml` 强制启用（MI-GAN 上极慢，仅实验用）。
-- Windows 想启用 DirectML：引用 `Microsoft.ML.OnnxRuntime.DirectML` 包并在 `OrtConfig.MakeSessionOptions` 中追加 DML EP。
+- **Super-resolution (Real-ESRGAN, fully convolutional)**: defaults to CoreML on macOS — measured on an M2, a 64×64 tile drops from 540ms (CPU) to 11ms, at the cost of a one-time 3–4s session compilation.
+- **Inpainting (MI-GAN)**: stays on CPU — CoreML can only take over 375 of its 559 nodes, and the partition-copy overhead turns a 0.4s inference into 69s.
+- The `INPAINT_EP` environment variable has the highest priority: `cpu` forces everything back to CPU, `coreml` force-enables CoreML (extremely slow on MI-GAN, for experiments only).
+- To enable DirectML on Windows: add the `Microsoft.ML.OnnxRuntime.DirectML` package and append the DML EP in `OrtConfig.MakeSessionOptions`.
 
-## 📄 许可证
+## 📄 License
 
 [MIT](./LICENSE)
