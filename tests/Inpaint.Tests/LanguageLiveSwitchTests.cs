@@ -36,10 +36,19 @@ public class LanguageLiveSwitchTests
 
         try
         {
+            // TabControl 只实例化选中页签的内容：先切到「性能」页签拿设备下拉框，再切回「通用」；
+            // 取下的控件即使随后被页签移出可视树，绑定仍活跃，后续断言照常有效
+            var tabs = settingsWindow.GetVisualDescendants().OfType<TabItem>().ToList();
+            var performanceTab = Assert.Single(tabs, t => (t.Header as string) == Translations.Instance.SectionPerformance);
+            performanceTab.IsSelected = true;
+            Dispatcher.UIThread.RunJobs();
+            var deviceBox = settingsWindow.GetVisualDescendants().OfType<ComboBox>().Single();
+            performanceTab.IsSelected = false;
+            Dispatcher.UIThread.RunJobs();
+
             var boxes = settingsWindow.GetVisualDescendants().OfType<ComboBox>().ToList();
             var themeBox = boxes[0];
             var languageBox = boxes[1];
-            var deviceBox = boxes[2];
             Assert.Equal("Inpaint — 图片修复与高清化", mainWindow.Title);
             Assert.Equal(1, languageBox.SelectedIndex); // 起始停在「简体中文」
 

@@ -67,6 +67,11 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(SaveNodeCommand))]
     private bool _isBusy;
 
+    /// <summary>当前遮罩是否已有涂抹（画布落笔置位，SetMask 重建遮罩时复位）。</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(InpaintByEnterCommand))]
+    private bool _hasMaskStrokes;
+
     public MainWindowViewModel(IStorageProvider? storage, IClipboard? clipboard, AppSettings? settings = null)
     {
         _storage = storage;
@@ -135,6 +140,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     private bool NotBusy() => !IsBusy;
     private bool NotBusyAndHasImage() => !IsBusy && HasImage;
+    private bool CanInpaintByEnter() => NotBusyAndHasImage() && HasMaskStrokes;
     private bool CanUndo() => !IsBusy && CurrentNode?.Parent is not null;
     private bool CanOperateNode(ImageHistoryNode? node) => !IsBusy && node is not null && _clipboard is not null;
 
@@ -237,6 +243,13 @@ public partial class MainWindowViewModel : ObservableObject
             ResetUpscaleEngineIfFlagged();
         }
     }
+
+    /// <summary>Enter 快捷键触发修复：仅已涂抹遮罩时可用（工具栏按钮不受此限，维持原可用条件）。</summary>
+    [RelayCommand(CanExecute = nameof(CanInpaintByEnter))]
+    private Task InpaintByEnterAsync() => InpaintAsync();
+
+    /// <summary>画布落下新笔触（由 MainWindow 接线 ImageEditorControl.StrokePainted）。internal 供单测。</summary>
+    internal void MarkMaskPainted() => HasMaskStrokes = true;
 
     // ---- 高清放大 ----
 
@@ -500,6 +513,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         MaskImage?.Dispose();
         MaskImage = CreateMask(size);
+        HasMaskStrokes = false; // 新遮罩无涂抹，Enter 修复快捷键随之回到不可用
     }
 
     private async Task SaveToPickerAsync(Bitmap bitmap)

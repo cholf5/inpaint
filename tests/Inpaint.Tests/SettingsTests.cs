@@ -126,6 +126,15 @@ public class SettingsTests
     }
 
     [Fact]
+    public void About_版本号与作者信息()
+    {
+        // 版本取 Inpaint.App 程序集（非入口程序集，避免测试宿主版本干扰）
+        Assert.Matches(@"^v\d+\.\d+\.\d+$", SettingsViewModel.AppVersion);
+        // 作者名中英文一致（词典仅中文源，英文回退到中文）
+        Assert.Equal("周尔复", Translations.Instance.AuthorName);
+    }
+
+    [Fact]
     public void SettingsViewModel_索引与枚举双向映射()
     {
         var settings = new AppSettings();

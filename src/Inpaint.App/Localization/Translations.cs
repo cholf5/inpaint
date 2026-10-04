@@ -67,7 +67,7 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(CopyImage)] = "复制图片",
         [nameof(DownloadPng)] = "下载 PNG",
         [nameof(SettingsTitle)] = "设置",
-        [nameof(SectionAppearance)] = "外观",
+        [nameof(SectionGeneral)] = "通用",
         [nameof(ThemeLabel)] = "主题",
         [nameof(FollowSystem)] = "跟随系统",
         [nameof(ThemeLight)] = "浅色",
@@ -83,15 +83,25 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(DeviceHint)] =
             "GPU 经 CoreML 加速，目前仅 macOS 生效；切换后首次推理需重新编译模型（约 3~4 秒）。" +
             "修复模型（MI-GAN）固定使用 CPU。环境变量 INPAINT_EP 优先级高于此设置。",
-        [nameof(SectionGeneral)] = "常规",
         [nameof(DefaultBrushLabel)] = "默认画笔大小",
         [nameof(MaxHistoryLabel)] = "生成历史上限",
         [nameof(MaxHistoryHint)] = "超出上限时优先丢弃最旧的不在当前路径上的节点，原图永不丢弃。",
+        [nameof(SectionShortcuts)] = "快捷键",
+        [nameof(ShortcutBrushDecrease)] = "缩小画笔",
+        [nameof(ShortcutBrushIncrease)] = "放大画笔",
+        [nameof(ShortcutInpaint)] = "执行修复（需已涂抹）",
         [nameof(SectionModels)] = "模型",
         [nameof(ModelsDirLabel)] = "模型缓存目录",
         [nameof(OpenModelsFolder)] = "打开模型文件夹",
         [nameof(OpenFolderFailed)] = "打开文件夹失败：{0}",
-        [nameof(Close)] = "关闭",
+        [nameof(SectionAbout)] = "关于",
+        [nameof(AboutIntro)] =
+            "纯本地运行的图片修复与高清化工具：MI-GAN 涂抹修复 + Real-ESRGAN ×4 高清放大，" +
+            "推理全程在本机 ONNX Runtime 完成，图片不上传任何服务器。",
+        [nameof(AuthorLabel)] = "作者",
+        [nameof(AuthorName)] = "周尔复",
+        [nameof(LicenseLabel)] = "开源许可",
+        [nameof(RepoLabel)] = "仓库地址",
     };
 
     private static readonly Dictionary<string, string> En = new()
@@ -142,7 +152,7 @@ public sealed class Translations : INotifyPropertyChanged
         [nameof(CopyImage)] = "Copy Image",
         [nameof(DownloadPng)] = "Download PNG",
         [nameof(SettingsTitle)] = "Settings",
-        [nameof(SectionAppearance)] = "Appearance",
+        [nameof(SectionGeneral)] = "General",
         [nameof(ThemeLabel)] = "Theme",
         [nameof(FollowSystem)] = "Follow system",
         [nameof(ThemeLight)] = "Light",
@@ -159,17 +169,27 @@ public sealed class Translations : INotifyPropertyChanged
             "GPU runs via CoreML and is currently macOS-only; the first inference after switching " +
             "recompiles the model (3–4 s). The inpaint model (MI-GAN) always runs on CPU. " +
             "The INPAINT_EP environment variable takes precedence over this setting.",
-        [nameof(SectionGeneral)] = "General",
         [nameof(DefaultBrushLabel)] = "Default brush size",
         [nameof(MaxHistoryLabel)] = "History limit",
         [nameof(MaxHistoryHint)] =
             "When exceeded, the oldest nodes off the current path are pruned first; " +
             "the original image is never dropped.",
+        [nameof(SectionShortcuts)] = "Shortcuts",
+        [nameof(ShortcutBrushDecrease)] = "Shrink brush",
+        [nameof(ShortcutBrushIncrease)] = "Grow brush",
+        [nameof(ShortcutInpaint)] = "Inpaint painted areas (paint the mask first)",
         [nameof(SectionModels)] = "Models",
         [nameof(ModelsDirLabel)] = "Model cache folder",
         [nameof(OpenModelsFolder)] = "Open Models Folder",
         [nameof(OpenFolderFailed)] = "Could not open folder: {0}",
-        [nameof(Close)] = "Close",
+        [nameof(SectionAbout)] = "About",
+        [nameof(AboutIntro)] =
+            "A fully local image inpainting & upscaling tool: MI-GAN inpainting + Real-ESRGAN ×4 upscaling. " +
+            "All inference runs on-device via ONNX Runtime — images never leave your machine.",
+        [nameof(AuthorLabel)] = "Author",
+        [nameof(AuthorName)] = "周尔复",
+        [nameof(LicenseLabel)] = "License",
+        [nameof(RepoLabel)] = "Repository",
     };
 
     public static Translations Instance { get; } = new();
@@ -278,7 +298,7 @@ public sealed class Translations : INotifyPropertyChanged
     // ---- 设置窗口 ----
 
     public string SettingsTitle => Get();
-    public string SectionAppearance => Get();
+    public string SectionGeneral => Get();
     public string ThemeLabel => Get();
     public string FollowSystem => Get();
     public string ThemeLight => Get();
@@ -292,13 +312,21 @@ public sealed class Translations : INotifyPropertyChanged
     public string DeviceCpu => Get();
     public string DeviceGpu => Get();
     public string DeviceHint => Get();
-    public string SectionGeneral => Get();
     public string DefaultBrushLabel => Get();
     public string MaxHistoryLabel => Get();
     public string MaxHistoryHint => Get();
+    public string SectionShortcuts => Get();
+    public string ShortcutBrushDecrease => Get();
+    public string ShortcutBrushIncrease => Get();
+    public string ShortcutInpaint => Get();
     public string SectionModels => Get();
     public string ModelsDirLabel => Get();
     public string OpenModelsFolder => Get();
     public string OpenFolderFailed => Get();
-    public string Close => Get();
+    public string SectionAbout => Get();
+    public string AboutIntro => Get();
+    public string AuthorLabel => Get();
+    public string AuthorName => Get();
+    public string LicenseLabel => Get();
+    public string RepoLabel => Get();
 }

@@ -270,14 +270,44 @@ public class MainWindowViewModelTests
         Assert.Equal(40, vm.BrushSize);
 
         vm.DecreaseBrushSizeCommand.Execute(null);
-        Assert.Equal(30, vm.BrushSize);
+        Assert.Equal(39, vm.BrushSize);
         vm.IncreaseBrushSizeCommand.Execute(null);
         Assert.Equal(40, vm.BrushSize);
 
-        for (int i = 0; i < 20; i++) vm.IncreaseBrushSizeCommand.Execute(null);
+        for (int i = 0; i < 200; i++) vm.IncreaseBrushSizeCommand.Execute(null);
         Assert.Equal(MainWindowViewModel.MaxBrushSize, vm.BrushSize);
-        for (int i = 0; i < 20; i++) vm.DecreaseBrushSizeCommand.Execute(null);
+        for (int i = 0; i < 200; i++) vm.DecreaseBrushSizeCommand.Execute(null);
         Assert.Equal(MainWindowViewModel.MinBrushSize, vm.BrushSize);
+    }
+
+    [AvaloniaFact]
+    public void Enter修复快捷键_涂抹后才可用_遮罩重建后回到不可用()
+    {
+        var vm = new MainWindowViewModel(null, null);
+        // 无图时不可用
+        Assert.False(vm.InpaintByEnterCommand.CanExecute(null));
+
+        vm.AdoptBitmap(MakeBitmap(6, 4));
+        // 有图未涂抹：Enter 不可用；修复按钮维持原可用条件，不受涂抹门槛影响（回归）
+        Assert.False(vm.InpaintByEnterCommand.CanExecute(null));
+        Assert.True(vm.InpaintCommand.CanExecute(null));
+
+        vm.MarkMaskPainted();
+        Assert.True(vm.InpaintByEnterCommand.CanExecute(null));
+
+        // 清除涂抹等一切 SetMask 重建遮罩的路径都会复位涂抹状态
+        vm.ClearMaskCommand.Execute(null);
+        Assert.False(vm.InpaintByEnterCommand.CanExecute(null));
+        Assert.False(vm.HasMaskStrokes);
+
+        // 重新涂抹后再次可用；切换历史节点（重建遮罩）同样复位
+        vm.MarkMaskPainted();
+        Assert.True(vm.InpaintByEnterCommand.CanExecute(null));
+        vm.PushHistory(MakeBitmap(8, 8), "测试");
+        vm.MarkMaskPainted();
+        Assert.True(vm.InpaintByEnterCommand.CanExecute(null));
+        vm.SelectNodeCommand.Execute(vm.HistoryNodes[0]);
+        Assert.False(vm.InpaintByEnterCommand.CanExecute(null));
     }
 
     [AvaloniaFact]

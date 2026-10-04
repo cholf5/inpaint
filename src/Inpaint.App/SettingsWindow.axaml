@@ -9,92 +9,153 @@
         Width="560" SizeToContent="Height" CanResize="False"
         WindowStartupLocation="CenterOwner">
     <!-- 修改即时生效（主题/语言/设备），关闭即完成；ItemsSource 声明在 SelectedIndex 之前，
-         保证绑定初始化时选项列表先于选中索引就位 -->
-    <StackPanel Margin="20" Spacing="14">
-
-        <TextBlock FontWeight="Bold" FontSize="14"
-                   Text="{Binding SectionAppearance, Source={x:Static loc:Translations.Instance}}"/>
-        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto" RowSpacing="10">
-            <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center"
-                       Text="{Binding ThemeLabel, Source={x:Static loc:Translations.Instance}}"/>
-            <ComboBox Grid.Row="0" Grid.Column="1" MinWidth="220" HorizontalAlignment="Left"
-                      ItemsSource="{Binding ThemeOptions}" SelectedIndex="{Binding ThemeIndex}">
-                <ComboBox.ItemTemplate>
-                    <DataTemplate x:DataType="vm:OptionItem">
-                        <TextBlock Text="{Binding Label}"/>
-                    </DataTemplate>
-                </ComboBox.ItemTemplate>
-            </ComboBox>
-            <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center"
-                       Text="{Binding LanguageLabel, Source={x:Static loc:Translations.Instance}}"/>
-            <ComboBox Grid.Row="1" Grid.Column="1" MinWidth="220" HorizontalAlignment="Left"
-                      ItemsSource="{Binding LanguageOptions}" SelectedIndex="{Binding LanguageIndex}">
-                <ComboBox.ItemTemplate>
-                    <DataTemplate x:DataType="vm:OptionItem">
-                        <TextBlock Text="{Binding Label}"/>
-                    </DataTemplate>
-                </ComboBox.ItemTemplate>
-            </ComboBox>
-        </Grid>
-
-        <Separator/>
-        <TextBlock FontWeight="Bold" FontSize="14"
-                   Text="{Binding SectionPerformance, Source={x:Static loc:Translations.Instance}}"/>
-        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto">
-            <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" TextWrapping="Wrap"
-                       Text="{Binding DeviceLabel, Source={x:Static loc:Translations.Instance}}"/>
-            <ComboBox Grid.Row="0" Grid.Column="1" MinWidth="220" HorizontalAlignment="Left"
-                      ItemsSource="{Binding DeviceOptions}" SelectedIndex="{Binding DeviceIndex}">
-                <ComboBox.ItemTemplate>
-                    <DataTemplate x:DataType="vm:OptionItem">
-                        <TextBlock Text="{Binding Label}"/>
-                    </DataTemplate>
-                </ComboBox.ItemTemplate>
-            </ComboBox>
-        </Grid>
-        <TextBlock Foreground="Gray" FontSize="12" TextWrapping="Wrap"
-                   Text="{Binding DeviceHint, Source={x:Static loc:Translations.Instance}}"/>
-
-        <Separator/>
-        <TextBlock FontWeight="Bold" FontSize="14"
-                   Text="{Binding SectionGeneral, Source={x:Static loc:Translations.Instance}}"/>
-        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto" RowSpacing="10">
-            <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center"
-                       Text="{Binding DefaultBrushLabel, Source={x:Static loc:Translations.Instance}}"/>
-            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                <Slider Width="220" VerticalAlignment="Center" Minimum="4" Maximum="160"
-                        Value="{Binding DefaultBrushSize}"/>
-                <TextBlock Width="36" VerticalAlignment="Center"
-                           Text="{Binding DefaultBrushSize, StringFormat='{}{0:F0}'}"/>
+         保证绑定初始化时选项列表先于选中索引就位。
+         页签划分：通用（外观+常规偏好）/ 性能 / 模型 / 快捷键（预留改键扩展）/ 关于（只读展示） -->
+    <TabControl>
+        <TabItem Header="{Binding SectionGeneral, Source={x:Static loc:Translations.Instance}}">
+            <StackPanel Margin="16,14" Spacing="14">
+                <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto" RowSpacing="10">
+                    <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center"
+                               Text="{Binding ThemeLabel, Source={x:Static loc:Translations.Instance}}"/>
+                    <ComboBox Grid.Row="0" Grid.Column="1" MinWidth="220" HorizontalAlignment="Left"
+                              ItemsSource="{Binding ThemeOptions}" SelectedIndex="{Binding ThemeIndex}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:OptionItem">
+                                <TextBlock Text="{Binding Label}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center"
+                               Text="{Binding LanguageLabel, Source={x:Static loc:Translations.Instance}}"/>
+                    <ComboBox Grid.Row="1" Grid.Column="1" MinWidth="220" HorizontalAlignment="Left"
+                              ItemsSource="{Binding LanguageOptions}" SelectedIndex="{Binding LanguageIndex}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:OptionItem">
+                                <TextBlock Text="{Binding Label}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </Grid>
+                <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto" RowSpacing="10">
+                    <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center"
+                               Text="{Binding DefaultBrushLabel, Source={x:Static loc:Translations.Instance}}"/>
+                    <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                        <Slider Width="220" VerticalAlignment="Center" Minimum="4" Maximum="160"
+                                Value="{Binding DefaultBrushSize}"/>
+                        <TextBlock Width="36" VerticalAlignment="Center"
+                                   Text="{Binding DefaultBrushSize, StringFormat='{}{0:F0}'}"/>
+                    </StackPanel>
+                    <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center"
+                               Text="{Binding MaxHistoryLabel, Source={x:Static loc:Translations.Instance}}"/>
+                    <NumericUpDown Grid.Row="1" Grid.Column="1" MinWidth="220" HorizontalAlignment="Left"
+                                   Minimum="5" Maximum="100" Increment="1"
+                                   Value="{Binding MaxHistoryValue}"/>
+                </Grid>
+                <TextBlock Foreground="Gray" FontSize="12" TextWrapping="Wrap"
+                           Text="{Binding MaxHistoryHint, Source={x:Static loc:Translations.Instance}}"/>
             </StackPanel>
-            <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center"
-                       Text="{Binding MaxHistoryLabel, Source={x:Static loc:Translations.Instance}}"/>
-            <NumericUpDown Grid.Row="1" Grid.Column="1" MinWidth="220" HorizontalAlignment="Left"
-                           Minimum="5" Maximum="100" Increment="1"
-                           Value="{Binding MaxHistoryValue}"/>
-        </Grid>
-        <TextBlock Foreground="Gray" FontSize="12" TextWrapping="Wrap"
-                   Text="{Binding MaxHistoryHint, Source={x:Static loc:Translations.Instance}}"/>
+        </TabItem>
 
-        <Separator/>
-        <TextBlock FontWeight="Bold" FontSize="14"
-                   Text="{Binding SectionModels, Source={x:Static loc:Translations.Instance}}"/>
-        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto">
-            <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center"
-                       Text="{Binding ModelsDirLabel, Source={x:Static loc:Translations.Instance}}"/>
-            <StackPanel Grid.Row="0" Grid.Column="1" Spacing="6">
-                <SelectableTextBlock FontSize="12"
-                                     Text="{x:Static inf:ModelStore.ModelsDir}"/>
-                <Button HorizontalAlignment="Left"
-                        Content="{Binding OpenModelsFolder, Source={x:Static loc:Translations.Instance}}"
-                        Click="OnOpenModelsFolder"/>
+        <TabItem Header="{Binding SectionPerformance, Source={x:Static loc:Translations.Instance}}">
+            <StackPanel Margin="16,14" Spacing="14">
+                <Grid ColumnDefinitions="180,*" RowDefinitions="Auto">
+                    <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" TextWrapping="Wrap"
+                               Text="{Binding DeviceLabel, Source={x:Static loc:Translations.Instance}}"/>
+                    <ComboBox Grid.Row="0" Grid.Column="1" MinWidth="220" HorizontalAlignment="Left"
+                              ItemsSource="{Binding DeviceOptions}" SelectedIndex="{Binding DeviceIndex}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:OptionItem">
+                                <TextBlock Text="{Binding Label}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </Grid>
+                <TextBlock Foreground="Gray" FontSize="12" TextWrapping="Wrap"
+                           Text="{Binding DeviceHint, Source={x:Static loc:Translations.Instance}}"/>
             </StackPanel>
-        </Grid>
-        <TextBlock x:Name="FolderStatus" Foreground="Gray" FontSize="12" TextWrapping="Wrap"/>
+        </TabItem>
 
-        <Separator/>
-        <Button HorizontalAlignment="Right" MinWidth="88"
-                Content="{Binding Close, Source={x:Static loc:Translations.Instance}}"
-                Click="OnClose"/>
-    </StackPanel>
+        <TabItem Header="{Binding SectionModels, Source={x:Static loc:Translations.Instance}}">
+            <StackPanel Margin="16,14" Spacing="14">
+                <Grid ColumnDefinitions="180,*" RowDefinitions="Auto">
+                    <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center"
+                               Text="{Binding ModelsDirLabel, Source={x:Static loc:Translations.Instance}}"/>
+                    <StackPanel Grid.Row="0" Grid.Column="1" Spacing="6">
+                        <SelectableTextBlock FontSize="12"
+                                             Text="{x:Static inf:ModelStore.ModelsDir}"/>
+                        <Button HorizontalAlignment="Left"
+                                Content="{Binding OpenModelsFolder, Source={x:Static loc:Translations.Instance}}"
+                                Click="OnOpenModelsFolder"/>
+                    </StackPanel>
+                </Grid>
+                <TextBlock x:Name="FolderStatus" Foreground="Gray" FontSize="12" TextWrapping="Wrap"/>
+            </StackPanel>
+        </TabItem>
+
+        <TabItem Header="{Binding SectionShortcuts, Source={x:Static loc:Translations.Instance}}">
+            <StackPanel Margin="16,14" Spacing="14">
+                <!-- 只读参考列表：左列键帽、右列动作；键名为语言无关字符，直接写死 -->
+                <Grid ColumnDefinitions="76,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
+                    <Border Grid.Row="0" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                            Padding="12,1" CornerRadius="4" BorderThickness="1" BorderBrush="#40000000">
+                        <TextBlock Text="["/>
+                    </Border>
+                    <TextBlock Grid.Row="0" Grid.Column="1" VerticalAlignment="Center"
+                               Text="{Binding ShortcutBrushDecrease, Source={x:Static loc:Translations.Instance}}"/>
+                    <Border Grid.Row="1" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                            Padding="12,1" CornerRadius="4" BorderThickness="1" BorderBrush="#40000000">
+                        <TextBlock Text="]"/>
+                    </Border>
+                    <TextBlock Grid.Row="1" Grid.Column="1" VerticalAlignment="Center"
+                               Text="{Binding ShortcutBrushIncrease, Source={x:Static loc:Translations.Instance}}"/>
+                    <Border Grid.Row="2" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                            Padding="8,1" CornerRadius="4" BorderThickness="1" BorderBrush="#40000000">
+                        <TextBlock Text="Enter"/>
+                    </Border>
+                    <TextBlock Grid.Row="2" Grid.Column="1" VerticalAlignment="Center"
+                               Text="{Binding ShortcutInpaint, Source={x:Static loc:Translations.Instance}}"/>
+                </Grid>
+            </StackPanel>
+        </TabItem>
+
+        <TabItem Header="{Binding SectionAbout, Source={x:Static loc:Translations.Instance}}">
+            <StackPanel Margin="16,14" Spacing="12">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <TextBlock FontWeight="Bold" FontSize="18" VerticalAlignment="Center"
+                               Text="{Binding AppTitle, Source={x:Static loc:Translations.Instance}}"/>
+                    <TextBlock VerticalAlignment="Center" Foreground="Gray"
+                               Text="{x:Static vm:SettingsViewModel.AppVersion}"/>
+                </StackPanel>
+                <TextBlock TextWrapping="Wrap"
+                           Text="{Binding AboutIntro, Source={x:Static loc:Translations.Instance}}"/>
+                <Separator/>
+                <Grid ColumnDefinitions="90,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="10">
+                    <TextBlock Grid.Row="0" VerticalAlignment="Center"
+                               Text="{Binding AuthorLabel, Source={x:Static loc:Translations.Instance}}"/>
+                    <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                        <TextBlock VerticalAlignment="Center" FontWeight="SemiBold"
+                                   Text="{Binding AuthorName, Source={x:Static loc:Translations.Instance}}"/>
+                        <!-- 图标：GitHub octicon mark-github 与 X 官方 logo，均为公开品牌图标路径 -->
+                        <Button Padding="6" Tag="https://github.com/cholf5" Click="OnOpenLink" ToolTip.Tip="GitHub">
+                            <Path Width="16" Height="16" Stretch="Uniform"
+                                  Fill="{Binding $parent[Button].Foreground}"
+                                  Data="F0 M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
+                        </Button>
+                        <Button Padding="6" Tag="https://x.com/cholf5" Click="OnOpenLink" ToolTip.Tip="X (Twitter)">
+                            <Path Width="16" Height="16" Stretch="Uniform"
+                                  Fill="{Binding $parent[Button].Foreground}"
+                                  Data="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/>
+                        </Button>
+                    </StackPanel>
+                    <TextBlock Grid.Row="1" VerticalAlignment="Center"
+                               Text="{Binding LicenseLabel, Source={x:Static loc:Translations.Instance}}"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Text="MIT"/>
+                    <TextBlock Grid.Row="2" VerticalAlignment="Center"
+                               Text="{Binding RepoLabel, Source={x:Static loc:Translations.Instance}}"/>
+                    <SelectableTextBlock Grid.Row="2" Grid.Column="1" VerticalAlignment="Center"
+                                         Text="https://github.com/cholf5/inpaint"/>
+                </Grid>
+            </StackPanel>
+        </TabItem>
+    </TabControl>
 </Window>

@@ -27,6 +27,9 @@ public class ImageEditorControl : Control
     public static readonly StyledProperty<bool> ShowSizePreviewProperty =
         AvaloniaProperty.Register<ImageEditorControl, bool>(nameof(ShowSizePreview));
 
+    /// <summary>左键在画布上落下新笔触后触发；ViewModel 借此感知遮罩已非空（Enter 修复快捷键的门槛）。</summary>
+    public event EventHandler? StrokePainted;
+
     static ImageEditorControl()
     {
         AffectsRender<ImageEditorControl>(SourceProperty);
@@ -164,6 +167,7 @@ public class ImageEditorControl : Control
         _hasLast = false;
         e.Pointer.Capture(this);
         PaintDisc(p);
+        StrokePainted?.Invoke(this, EventArgs.Empty);
         _last = p;
         _hasLast = true;
         InvalidateVisual();

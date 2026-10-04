@@ -15,6 +15,7 @@ public partial class MainWindow : Window
 
     private readonly DispatcherTimer _brushPreviewTimer = new();
     private bool _brushSliderDragging;
+    private SettingsWindow? _settingsWindow;
 
     /// <summary>settings 为运行期共享单实例（App 传入）；测试可直接构造，默认走全新默认设置、不读磁盘。</summary>
     public MainWindow() : this(null)
@@ -29,6 +30,9 @@ public partial class MainWindow : Window
         DataContext = viewModel;
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DropEvent, OnDrop);
+
+        // 画布落笔后标记遮罩非空：Enter 触发修复的「已涂抹」门槛
+        Editor.StrokePainted += (_, _) => viewModel.MarkMaskPainted();
 
         // 拖动画笔大小滑块期间，指针虽在滑块上，也持续在画布上显示画笔大小预览环
         BrushSlider.AddHandler(Thumb.DragStartedEvent, (_, _) =>
@@ -75,12 +79,28 @@ public partial class MainWindow : Window
         };
     }
 
-    /// <summary>打开设置窗口（模态）：共享 AppSettings，修改即时生效。</summary>
-    private async void OnSettingsClick(object? sender, RoutedEventArgs e)
+    /// <summary>
+    /// 打开设置窗口：非模态（可边改实时生效项边操作主窗口）、单实例（重复打开只置前不新建）。
+    /// internal 供单测。
+    /// </summary>
+    internal SettingsWindow? OpenSettings()
     {
-        if (DataContext is not MainWindowViewModel viewModel) return;
-        await new SettingsWindow(viewModel.Settings).ShowDialog(this);
+        if (DataContext is not MainWindowViewModel viewModel) return null;
+        if (_settingsWindow is { } open)
+        {
+            open.Activate();
+            return open;
+        }
+        var settingsWindow = new SettingsWindow(viewModel.Settings);
+        // 关闭后窗口不可复用，清引用让下次点击重建
+        settingsWindow.Closed += (_, _) => _settingsWindow = null;
+        _settingsWindow = settingsWindow;
+        // Show(owner)：非模态且归属主窗口（居中、随主窗口激活而置前），Owner 属性本身是 protected
+        settingsWindow.Show(this);
+        return settingsWindow;
     }
+
+    private void OnSettingsClick(object? sender, RoutedEventArgs e) => OpenSettings();
 
     private async void OnDrop(object? sender, DragEventArgs e)
     {

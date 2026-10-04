@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Reflection;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Inpaint.App.Localization;
 using Inpaint.App.Services;
@@ -26,6 +27,12 @@ public sealed class SettingsViewModel : ObservableObject
 {
     private readonly AppSettings _settings;
     private readonly Translations _t = Translations.Instance;
+
+    /// <summary>程序集版本（「关于」页展示），取 Inpaint.App 程序集而非入口程序集，测试宿主下也稳定。</summary>
+    public static string AppVersion { get; } =
+        "v" + (typeof(SettingsViewModel).Assembly.GetName().Version is { } version
+            ? version.ToString(3)
+            : "0.0.0");
 
     // 选项实例一次创建、跨语言复用，顺序与枚举下标一一对应；标签在构造时按当前语言填充
     private readonly OptionItem[] _themeOptions = [new(""), new(""), new("")];

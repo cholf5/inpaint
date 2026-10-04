@@ -16,13 +16,19 @@ public partial class SettingsWindow : Window
         Closed += (_, _) => (DataContext as SettingsViewModel)?.Detach();
     }
 
-    /// <summary>共享同一 AppSettings 实例，修改实时写回并由订阅方生效。</summary>
+    /// <summary>共享同一 AppSettings 实例，修改实时写回并由订阅方生效（非模态，可边改边看主窗口）。</summary>
     public SettingsWindow(AppSettings settings) : this()
     {
         DataContext = new SettingsViewModel(settings);
     }
 
-    private void OnClose(object? sender, RoutedEventArgs e) => Close();
+    /// <summary>「关于」页的作者主页链接：URL 放在按钮 Tag 上，经系统默认浏览器打开。</summary>
+    private async void OnOpenLink(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string url } || TopLevel.GetTopLevel(this)?.Launcher is not { } launcher)
+            return;
+        await launcher.LaunchUriAsync(new Uri(url));
+    }
 
     private async void OnOpenModelsFolder(object? sender, RoutedEventArgs e)
     {

@@ -119,6 +119,24 @@ public class ImageEditorControlTests
     }
 
     [AvaloniaFact]
+    public void 左键落笔_触发StrokePainted事件_右键不触发()
+    {
+        var host = CreateEditor();
+        int strokes = 0;
+        host.Editor.StrokePainted += (_, _) => strokes++;
+
+        host.Window.MouseDown(new Point(WinW / 2.0, WinH / 2.0), MouseButton.Left);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(1, strokes);
+
+        host.Window.MouseDown(new Point(40, 40), MouseButton.Right);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(1, strokes);
+
+        host.Window.Close();
+    }
+
+    [AvaloniaFact]
     public void 笔触越界_钳制到图片边缘()
     {
         var host = CreateEditor();

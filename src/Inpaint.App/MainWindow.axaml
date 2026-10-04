@@ -13,6 +13,8 @@
         <KeyBinding Gesture="Ctrl+Z" Command="{Binding UndoCommand}"/>
         <KeyBinding Gesture="OemOpenBrackets" Command="{Binding DecreaseBrushSizeCommand}"/>
         <KeyBinding Gesture="OemCloseBrackets" Command="{Binding IncreaseBrushSizeCommand}"/>
+        <!-- 修复快捷键：需已涂抹遮罩（CanExecute 门控在 InpaintByEnterCommand） -->
+        <KeyBinding Gesture="Enter" Command="{Binding InpaintByEnterCommand}"/>
     </Window.KeyBindings>
     <!-- 三段式布局：顶栏只留文件入口与全局项，动作按钮集中到底部卡片工具栏（参考 web 版），
          中部画布 + 右侧历史 Graph 保持原样 -->
