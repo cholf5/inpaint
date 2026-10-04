@@ -15,7 +15,7 @@ for arg in "$@"; do
   case "$arg" in
     arm64 | x64) ARCH=$arg ;;
     --fdd) SELF_CONTAINED=false ;;
-    *) echo "未知参数: $arg（用法见文件头注释）" >&2; exit 1 ;;
+    *) echo "未知参数: ${arg}（用法见文件头注释）" >&2; exit 1 ;;
   esac
 done
 

@@ -11,6 +11,9 @@
 #   git push origin :refs/tags/vX.Y.Z && git tag -d vX.Y.Z
 # 再重跑本脚本（csproj 已是目标版本时自动跳过 bump 提交）。
 # 版本必须与 csproj <Version> 一致，workflow 会在 tag 时强制校验。
+#
+# 注意：echo 里紧邻全角字符的变量要写 ${VAR}，否则 macOS 的 sh（bash 3.2）会把
+# 多字节字符并入变量名导致 unbound variable（UTF-8 locale 下 isalpha 对高位字节返回真）。
 set -eu
 cd "$(dirname "$0")/.."
 
@@ -61,12 +64,12 @@ if [ "$CUR" != "$VERSION" ]; then
   sed "s#\(<Version>\)[^<]*\(</Version>\)#\1$VERSION\2#" "$PROJECT" > "$TMP"
   mv "$TMP" "$PROJECT"
   NEW=$(sed -n 's/.*<Version>\(.*\)<\/Version>.*/\1/p' "$PROJECT" | head -1 | tr -d '[:space:]')
-  [ "$NEW" = "$VERSION" ] || { echo "版本替换校验失败：期望 $VERSION，实得 $NEW" >&2; exit 1; }
+  [ "$NEW" = "$VERSION" ] || { echo "版本替换校验失败：期望 ${VERSION}，实得 $NEW" >&2; exit 1; }
 
   git add "$PROJECT"
   git commit -m "Bump version to $VERSION"
 else
-  echo "csproj 已是 $VERSION，跳过 bump 提交，直接打 tag"
+  echo "csproj 已是 ${VERSION}，跳过 bump 提交，直接打 tag"
 fi
 
 git tag -a "$TAG" -m "Inpaint $TAG"
@@ -77,9 +80,9 @@ RUN_URL="https://github.com/$SLUG/actions"
 REL_URL="https://github.com/$SLUG/releases/tag/$TAG"
 
 if [ "$WATCH" != true ]; then
-  echo "已推送 $TAG，CI 会自动打包并发布："
+  echo "已推送 ${TAG}，CI 会自动打包并发布："
   echo "  Actions: $RUN_URL"
-  echo "  Release: $REL_URL（流水线跑完后出现）"
+  echo "  Release: ${REL_URL}（流水线跑完后出现）"
   exit 0
 fi
 
@@ -97,7 +100,7 @@ if [ -z "$RUN_ID" ] || [ "$RUN_ID" = null ]; then
   echo "未找到 $TAG 触发的 CI run，手动看 $RUN_URL" >&2
   exit 1
 fi
-echo "等待 CI（run $RUN_ID，最长 45 分钟）..."
+echo "等待 CI（run ${RUN_ID}，最长 45 分钟）..."
 
 i=0
 while [ $i -lt 90 ]; do
@@ -105,7 +108,7 @@ while [ $i -lt 90 ]; do
   case "$STATE" in
     completed/success) break ;;
     completed/*)
-      echo "CI 失败（$STATE）。修复后删除 tag 重跑：git push origin :refs/tags/$TAG && git tag -d $TAG" >&2
+      echo "CI 失败（${STATE}）。修复后删除 tag 重跑：git push origin :refs/tags/$TAG && git tag -d $TAG" >&2
       echo "日志：$RUN_URL/$RUN_ID" >&2
       exit 1
       ;;
@@ -125,9 +128,9 @@ for want in "Inpaint-$VERSION-macos-arm64.zip" "Inpaint-$VERSION-macos-x64.zip" 
   esac
 done
 if [ -n "$MISSING" ]; then
-  echo "Release 产物缺失：$MISSING。可在 Actions 页 Re-run release job，或删 tag 重跑脚本。" >&2
+  echo "Release 产物缺失：${MISSING}。可在 Actions 页 Re-run release job，或删 tag 重跑脚本。" >&2
   exit 1
 fi
 
-echo "发版完成 $TAG：$REL_URL"
+echo "发版完成 ${TAG}：$REL_URL"
 echo "产物：$ASSETS"
